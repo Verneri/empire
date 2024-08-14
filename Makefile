@@ -6,6 +6,8 @@
 
 VERS=1.13
 
+CC = zig cc
+
 # Use -g to compile the program for debugging.
 #DEBUG = -g -DDEBUG
 DEBUG = -O2
@@ -35,7 +37,8 @@ FILES = \
 	object.c \
 	term.c \
 	usermove.c \
-	util.c
+	util.c \
+	globals.c
 
 HEADERS = empire.h extern.h
 
@@ -53,7 +56,8 @@ OFILES = \
 	object.o \
 	term.o \
 	usermove.o \
-	util.o
+	util.o \
+	globals.o
 
 all: vms-empire
 
@@ -74,6 +78,7 @@ object.o:: extern.h empire.h
 term.o:: extern.h empire.h
 usermove.o:: extern.h empire.h
 util.o:: extern.h empire.h
+globals.o:: extern.h empire.h
 
 empire.6: vms-empire.xml
 	xmlto man vms-empire.xml
