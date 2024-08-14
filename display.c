@@ -19,7 +19,6 @@ information:
 #include <curses.h>
 #include <stdarg.h>
 #include <string.h>
-#include "empire.h"
 #include "extern.h"
 
 static int whose_map = UNOWNED; /* user's or computer's point of view */
@@ -53,7 +52,7 @@ void init_colors(void) {
 /*
 Used for win announcements
  */
-void announce(char *msg) { (void)addstr(msg); }
+void announce(const char *msg) { (void)addstr(msg); }
 
 /*
  * Map input character to direction offset.
@@ -209,7 +208,7 @@ screen.
 void print_sector(int whose, view_map_t vmap[], int sector)
 /* whose is USER or COMP, vmap is map to display, sector is sector to display */
 {
-  void display_screen();
+  void display_screen(view_map_t vmap[]);
 
   int first_row, first_col, last_row, last_col;
   int display_rows, display_cols;
@@ -269,7 +268,10 @@ void print_sector(int whose, view_map_t vmap[], int sector)
       pos_str(r - ref_row + NUMTOPS, cols - NUMSIDES + 1, "  ");
   }
   /* print round number */
-  (void)sprintf(jnkbuf, "Sector %d Round %ld", sector, date);
+  const char* msg = "Sector %d Round %ld";
+
+
+  (void)snprintf(jnkbuf, STRSIZE, msg, sector, date);
   for (r = 0; jnkbuf[r] != '\0'; r++) {
     if (r + NUMTOPS >= MAP_HEIGHT) break;
     (void)move(r + NUMTOPS, cols - NUMSIDES + 4);
@@ -403,7 +405,8 @@ Print a condensed version of the map.
 char zoom_list[] = "XO*tcbsdpfaTCBSDPFAzZ+. ";
 
 void print_zoom(view_map_t *vmap) {
-  void print_zoom_cell();
+  void print_zoom_cell(view_map_t *vmap, int row, int col, int row_inc,
+                     int col_inc);
 
   int row_inc, col_inc;
   int r, c;
@@ -446,8 +449,9 @@ void print_zoom_cell(view_map_t *vmap, int row, int col, int row_inc,
 Print a condensed version of a pathmap.
 */
 
-void print_pzoom(char *s, path_map_t *pmap, view_map_t *vmap) {
-  void print_pzoom_cell();
+void print_pzoom(const char *s, path_map_t *pmap, view_map_t *vmap) {
+  void print_pzoom_cell(path_map_t *pmap, view_map_t *vmap, int row, int col,
+                      int row_inc, int col_inc);
 
   int row_inc, col_inc;
   int r, c;
@@ -617,13 +621,13 @@ void close_disp(void) {
 Position the cursor and output a string.
 */
 
-void pos_str(int row, int col, char *str, ...) {
+void pos_str(int row, int col, const char *str, ...) {
   va_list ap;
   char junkbuf[STRSIZE];
 
   va_start(ap, str);
   (void)move(row, col);
-  vsprintf(junkbuf, str, ap);
+  vsnprintf(junkbuf, STRSIZE, str, ap);
   (void)addstr(junkbuf);
   va_end(ap);
 }

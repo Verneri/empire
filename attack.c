@@ -23,7 +23,6 @@ the dead object.  Tell user who won and how many hits her piece has left,
 if any.
 */
 
-#include "empire.h"
 #include "extern.h"
 
 void attack_city(piece_info_t *att_obj, loc_t loc) {
@@ -77,7 +76,7 @@ First we have to figure out what is being attacked.
 */
 
 void attack_obj(piece_info_t *att_obj, loc_t loc) {
-  void describe(), survive();
+  void describe(piece_info_t *win_obj, piece_info_t *lose_obj, loc_t loc), survive(piece_info_t *obj, loc_t loc);
 
   piece_info_t *def_obj; /* defender */
   int owner;

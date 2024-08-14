@@ -10,7 +10,6 @@ empire.c -- this file contains initialization code, the main command
 parser, and the simple commands.
 */
 
-#include "empire.h"
 #include <stdio.h>
 #include "extern.h"
 
@@ -26,11 +25,11 @@ void c_examine(void), c_movie(void);
 
 void empire(void) {
   void do_command(char);
-  void print_zoom();
+  void print_zoom(view_map_t *vmap);
 
   char order;
   int turn = 0;
-
+ 
   ttinit(); /* init tty */
   rndini(); /* init random number generator */
 

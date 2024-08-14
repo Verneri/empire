@@ -81,7 +81,7 @@ int dir_offset[] = {-MAP_WIDTH,      /* north */
 
 /* Names of movement functions. */
 
-char *func_name[] = {"none",      "random", "sentry", "fill", "land",
+const char *func_name[] = {"none",      "random", "sentry", "fill", "land",
                      "explore",   "load",   "attack", "load", "repair",
                      "transport", "W",      "E",      "D",    "C",
                      "X",         "Z",      "A",      "Q"};
@@ -172,7 +172,7 @@ move_info_t user_ship_repair = {USER, "O", {1}};
 Various help texts.
 */
 
-char *help_cmd[] = {"COMMAND MODE",
+const char *help_cmd[] = {"COMMAND MODE",
                     "Auto:     enter automove mode",
                     "City:     give city to computer",
                     "Date:     print round",
@@ -193,7 +193,7 @@ char *help_cmd[] = {"COMMAND MODE",
                     "<ctrl-L>: redraw screen"};
 int cmd_lines = 19;
 
-char *help_user[] = {"USER MODE",
+const char *help_user[] = {"USER MODE",
                      "QWE",
                      "A D       movement directions",
                      "ZXC",
@@ -218,7 +218,7 @@ char *help_user[] = {"USER MODE",
                      "?:        describe piece"};
 int user_lines = 22;
 
-char *help_edit[] = {"EDIT MODE",
+const char *help_edit[] = {"EDIT MODE",
                      "QWE",
                      "A D       movement directions",
                      "ZXC",

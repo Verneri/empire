@@ -13,7 +13,6 @@ real_maps, path_maps, and cont_maps.
 */
 
 #include <string.h>
-#include "empire.h"
 #include "extern.h"
 
 #define SWAP(a, b)  \
@@ -515,15 +514,19 @@ static void expand_perimeter(path_map_t *pmap, view_map_t *vmap,
 /* waterp = pointer to new water perimeter */
 /* landp = pointer to new land perimeter */
 {
-  register long i;
-  register int j;
+  //register 
+  long i;
+  //register 
+  int j;
   loc_t new_loc;
   int obj_cost;
-  register int new_type;
+  //register 
+  int new_type;
 
   for (i = 0; i < curp->len; i++)           /* for each perimeter cell... */
     FOR_ADJ_ON(curp->list[i], new_loc, j) { /* for each adjacent cell... */
-      register path_map_t *pm = pmap + new_loc;
+      //register 
+      path_map_t *pm = pmap + new_loc;
 
       if (pm->cost == INFINITY) {
         new_type = terrain_type(pmap, vmap, move_info, curp->list[i], new_loc);
@@ -556,7 +559,8 @@ static void expand_perimeter(path_map_t *pmap, view_map_t *vmap,
 
 static void add_cell(path_map_t *pmap, loc_t new_loc, perimeter_t *perim,
                      int terrain, int cur_cost, int inc_cost) {
-  register path_map_t *pm = &pmap[new_loc];
+  //register 
+  path_map_t *pm = &pmap[new_loc];
 
   pm->terrain = terrain;
   pm->inc_cost = inc_cost;
@@ -570,7 +574,7 @@ static void add_cell(path_map_t *pmap, loc_t new_loc, perimeter_t *perim,
 
 static int objective_cost(view_map_t *vmap, move_info_t *move_info, loc_t loc,
                           int base_cost) {
-  char *p;
+  const char *p;
   int w;
   city_info_t *cityp;
 
@@ -967,11 +971,11 @@ static int order[] = {NORTHWEST, NORTHEAST, SOUTHWEST, SOUTHEAST,
                       WEST,      EAST,      NORTH,     SOUTH};
 
 loc_t vmap_find_dir(path_map_t path_map[], view_map_t *vmap, loc_t loc,
-                    char *terrain, char *adj_char) {
+                    const char *terrain, const char *adj_char) {
   int i, count, bestcount;
   loc_t bestloc, new_loc;
   int path_count, bestpath;
-  char *p;
+  const char *p;
 
   if (trace_pmap) print_pzoom("Before vmap_find_dir:", path_map, vmap);
 
@@ -1007,10 +1011,10 @@ Squares are weighted so that the first in the list
 is the most interesting.
 */
 
-int vmap_count_adjacent(view_map_t *vmap, loc_t loc, char *adj_char) {
+int vmap_count_adjacent(view_map_t *vmap, loc_t loc, const char *adj_char) {
   int i, count;
   loc_t new_loc;
-  char *p;
+  const char *p;
   int len;
 
   len = strlen(adj_char);

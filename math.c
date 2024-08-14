@@ -22,7 +22,6 @@ Other routines include:
 
 #include <stdlib.h>
 #include <time.h>
-#include "empire.h"
 #include "extern.h"
 
 void rndini(void) { srand((unsigned)(time(0) & 0xFFFF)); }

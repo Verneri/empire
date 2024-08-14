@@ -12,7 +12,6 @@ object.c -- routines for manipulating objects.
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
-#include "empire.h"
 #include "extern.h"
 
 extern int get_piece_name(void);
@@ -165,7 +164,7 @@ anything in the object, it is killed as well.
 */
 
 void kill_obj(piece_info_t *obj, loc_t loc) {
-  void kill_one();
+  void kill_one(piece_info_t **list, piece_info_t *obj);
 
   piece_info_t **list;
   view_map_t *vmap;
@@ -247,33 +246,33 @@ static int sat_dir[4] = {MOVE_NW, MOVE_SW, MOVE_NE, MOVE_SE};
 
 void produce(city_info_t *cityp) {
   piece_info_t **list;
-  piece_info_t *new;
+  piece_info_t *new_piece;
 
   list = LIST(cityp->owner);
 
   cityp->work -= piece_attr[(int)cityp->prod].build_time;
 
   ASSERT(free_list); /* can we allocate? */
-  new = free_list;
-  UNLINK(free_list, new, piece_link);
-  LINK(list[(int)cityp->prod], new, piece_link);
-  LINK(map[cityp->loc].objp, new, loc_link);
-  new->cargo_link.next = NULL;
-  new->cargo_link.prev = NULL;
+  new_piece = free_list;
+  UNLINK(free_list, new_piece, piece_link);
+  LINK(list[(int)cityp->prod], new_piece, piece_link);
+  LINK(map[cityp->loc].objp, new_piece, loc_link);
+  new_piece->cargo_link.next = NULL;
+  new_piece->cargo_link.prev = NULL;
 
-  new->loc = cityp->loc;
-  new->func = NOFUNC;
-  new->hits = piece_attr[(int)cityp->prod].max_hits;
-  new->owner = cityp->owner;
-  new->type = cityp->prod;
-  new->moved = 0;
-  new->cargo = NULL;
-  new->ship = NULL;
-  new->count = 0;
-  new->range = piece_attr[(int)cityp->prod].range;
+  new_piece->loc = cityp->loc;
+  new_piece->func = NOFUNC;
+  new_piece->hits = piece_attr[(int)cityp->prod].max_hits;
+  new_piece->owner = cityp->owner;
+  new_piece->type = cityp->prod;
+  new_piece->moved = 0;
+  new_piece->cargo = NULL;
+  new_piece->ship = NULL;
+  new_piece->count = 0;
+  new_piece->range = piece_attr[(int)cityp->prod].range;
 
-  if (new->type == SATELLITE) { /* set random move direction */
-    new->func = sat_dir[irand(4)];
+  if (new_piece->type == SATELLITE) { /* set random move direction */
+    new_piece->func = sat_dir[irand(4)];
   }
 }
 
@@ -442,23 +441,23 @@ void describe_obj(piece_info_t *obj) {
   char other[STRSIZE];
 
   if (obj->func >= 0)
-    (void)sprintf(func, "%d", loc_disp(obj->func));
+    (void)snprintf(func, STRSIZE, "%d", loc_disp(obj->func));
   else
-    (void)sprintf(func, func_name[FUNCI(obj->func)]);
+    (void)snprintf(func, STRSIZE, "%s", func_name[FUNCI(obj->func)]);
 
   other[0] = 0;
 
   switch (obj->type) { /* set other information */
     case FIGHTER:
-      (void)sprintf(other, "; range = %d", obj->range);
+      (void)snprintf(other, STRSIZE, "; range = %d", obj->range);
       break;
 
     case TRANSPORT:
-      (void)sprintf(other, "; armies = %d", obj->count);
+      (void)snprintf(other, STRSIZE, "; armies = %d", obj->count);
       break;
 
     case CARRIER:
-      (void)sprintf(other, "; fighters = %d", obj->count);
+      (void)snprintf(other, STRSIZE, "; fighters = %d", obj->count);
       break;
   }
 
@@ -477,7 +476,7 @@ on top.
 */
 
 void scan(view_map_t vmap[], loc_t loc) {
-  void update(), check(void);
+  void update(view_map_t vmap[], loc_t loc), check(void);
 
   int i;
   loc_t xloc;

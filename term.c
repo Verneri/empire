@@ -34,7 +34,6 @@ to read the lines.  The new information is then displayed, and the
 #include <stdlib.h>
 #include <string.h>
 
-#include "empire.h"
 #include "extern.h"
 
 static bool need_delay;
@@ -63,7 +62,7 @@ static void vtopmsg(int line, const char *fmt, va_list varglist)
   (void)clrtoeol();
 }
 
-void topmsg(int line, char *fmt, ...) {
+void topmsg(int line, const char *fmt, ...) {
   va_list ap;
 
   va_start(ap, fmt);
@@ -75,7 +74,7 @@ void topmsg(int line, char *fmt, ...) {
 Print a prompt on the first message line.
 */
 
-void prompt(char *fmt, ...) {
+void prompt(const char *fmt, ...) {
   va_list ap;
 
   va_start(ap, fmt);
@@ -87,7 +86,7 @@ void prompt(char *fmt, ...) {
 Print an error message on the second message line.
 */
 
-void error(char *fmt, ...) {
+void error(const char *fmt, ...) {
   va_list ap;
 
   va_start(ap, fmt);
@@ -99,7 +98,7 @@ void error(char *fmt, ...) {
 Print out extra information.
 */
 
-void extra(char *fmt, ...) {
+void extra(const char *fmt, ...) {
   va_list ap;
 
   va_start(ap, fmt);
@@ -119,7 +118,7 @@ we force a delay, then print the information.  After we print the
 information, we set the need_delay flag.
 */
 
-void info(char *a, char *b, char *c) {
+void info(const char *a, const char *b, const char *c) {
   if (need_delay) delay();
   topmsg(1, a);
   topmsg(2, b);
@@ -129,7 +128,7 @@ void info(char *a, char *b, char *c) {
 
 void set_need_delay(void) { need_delay = true; }
 
-void comment(char *fmt, ...) {
+void comment(const char *fmt, ...) {
   va_list ap;
 
   va_start(ap, fmt);
@@ -141,7 +140,7 @@ void comment(char *fmt, ...) {
   va_end(ap);
 }
 
-void pdebug(char *fmt, ...) {
+void pdebug(const char *fmt, ...) {
   va_list ap;
 
   if (!print_debug) return;
@@ -167,7 +166,7 @@ void vksend(const char *fmt, va_list varglist) {
   return;
 }
 
-void ksend(char *fmt, ...) {
+void ksend(const char *fmt, ...) {
   va_list ap;
 
   va_start(ap, fmt);
@@ -218,7 +217,7 @@ char get_chx(void) {
 Input an integer from the user.
 */
 
-int getint(char *message) {
+int getint(const char *message) {
   char buf[STRSIZE];
   char *p;
 
@@ -274,7 +273,7 @@ Input a yes or no response from the user.  We loop until we get
 a valid response.  We return true iff the user replies 'y'.
 */
 
-bool getyn(char *message) {
+bool getyn(const char *message) {
   char c;
 
   for (;;) {
@@ -292,7 +291,7 @@ bool getyn(char *message) {
 Input an integer in a range.
 */
 
-int get_range(char *message, int low, int high) {
+int get_range(const char *message, int low, int high) {
   int result;
 
   for (;;) {

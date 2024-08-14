@@ -12,17 +12,16 @@ usermove.c -- Let the user move her troops.
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
-#include "empire.h"
 #include "extern.h"
 
-void fatal(piece_info_t *obj, loc_t loc, char *message, char *response);
+void fatal(piece_info_t *obj, loc_t loc, const char *message, const char *response);
 void move_to_dest(piece_info_t *obj, loc_t dest);
 void move_army_to_city(piece_info_t *obj, loc_t city_loc);
 bool awake(piece_info_t *obj);
 extern int get_piece_name(void);
 
 void user_move(void) {
-  void piece_move();
+  void piece_move(piece_info_t *obj);
 
   int i, j, sec, sec_start;
   piece_info_t *obj, *next_obj;
@@ -101,10 +100,10 @@ the piece has not moved after this, we ask the user what to do.
 */
 
 void piece_move(piece_info_t *obj) {
-  void move_random(), move_fill(), move_land(), move_explore();
-  void move_path(), move_dir(), move_armyload(), ask_user();
-  void move_armyattack(), move_ttload(), move_repair();
-  void move_transport();
+  void move_random(piece_info_t *obj), move_fill(piece_info_t *obj), move_land(piece_info_t *obj), move_explore(piece_info_t *obj);
+  void move_path(piece_info_t *obj), move_dir(piece_info_t *obj), move_armyload(piece_info_t *obj), ask_user(piece_info_t *obj);
+  void move_armyattack(piece_info_t *obj), move_ttload(piece_info_t *obj), move_repair(piece_info_t *obj);
+  void move_transport(piece_info_t *obj);
 
   bool changed_loc;
   int speed, max_hits;
@@ -251,7 +250,7 @@ territory.
 void move_explore(piece_info_t *obj) {
   path_map_t path_map[MAP_SIZE];
   loc_t loc;
-  char *terrain;
+  const char *terrain;
 
   switch (obj->type) {
     case ARMY:
@@ -353,7 +352,7 @@ void move_armyattack(piece_info_t *obj) {
   if (loc != obj->loc) move_obj(obj, loc);
 }
 
-void move_ttload(piece_info_t *obj) { ABORT; }
+void move_ttload(piece_info_t *obj __attribute__((unused))) { ABORT; }
 
 /*
 Move a ship toward port.  If the ship is healthy, wake it up.
@@ -471,7 +470,7 @@ move.
 void move_to_dest(piece_info_t *obj, loc_t dest) {
   path_map_t path_map[MAP_SIZE];
   int fterrain;
-  char *mterrain;
+  const char *mterrain;
   loc_t new_loc;
 
   switch (obj->type) {
@@ -504,12 +503,12 @@ Ask the user to move her piece.
 */
 
 void ask_user(piece_info_t *obj) {
-  void user_skip(), user_fill(), user_dir(), user_set_dir();
-  void user_wake(), user_set_city_func(), user_cancel_auto();
-  void user_redraw(), user_random(), user_land(), user_sentry();
-  void user_help(), reset_func(), user_explore();
-  void user_build(), user_transport();
-  void user_armyattack(), user_repair();
+  void user_skip(piece_info_t *obj), user_fill(piece_info_t *obj), user_dir(piece_info_t *obj, int dir), user_set_dir(piece_info_t *obj);
+  void user_wake(piece_info_t *obj), user_set_city_func(piece_info_t *obj), user_cancel_auto(void);
+  void user_redraw(void), user_random(piece_info_t *obj), user_land(piece_info_t *obj), user_sentry(piece_info_t *obj);
+  void user_help(void), reset_func(piece_info_t *obj), user_explore(piece_info_t *obj);
+  void user_build(piece_info_t *obj), user_transport(piece_info_t *obj);
+  void user_armyattack(piece_info_t *obj), user_repair(piece_info_t *obj);
 
   char c;
 
@@ -778,9 +777,9 @@ Set a city's function.
 */
 
 void user_set_city_func(piece_info_t *obj) {
-  void e_city_fill(), e_city_explore(), e_city_stasis();
-  void e_city_wake(), e_city_random(), e_city_repair();
-  void e_city_attack();
+  void e_city_fill(city_info_t *cityp, int type), e_city_explore(city_info_t *cityp, int type), e_city_stasis(city_info_t *cityp, int type);
+  void e_city_wake(city_info_t *cityp, int type), e_city_random(city_info_t *cityp, int type), e_city_repair(city_info_t *cityp, int type);
+  void e_city_attack(city_info_t *cityp, int type);
 
   int type;
   char e;
@@ -850,7 +849,7 @@ This routine handles attacking objects.
 */
 
 void user_dir(piece_info_t *obj, int dir) {
-  void user_dir_army(), user_dir_fighter(), user_dir_ship();
+  void user_dir_army(piece_info_t *obj, loc_t loc), user_dir_fighter(piece_info_t *obj, loc_t loc), user_dir_ship(piece_info_t *obj, loc_t loc);
 
   loc_t loc;
 
@@ -967,7 +966,7 @@ a city, attacking self, attacking enemy.
 
 void user_dir_ship(piece_info_t *obj, loc_t loc) {
   if (map[loc].contents == MAP_CITY) {
-    (void)sprintf(jnkbuf, "Your %s broke up on shore.",
+    (void)snprintf(jnkbuf, STRSIZE,  "Your %s broke up on shore.",
                   piece_attr[obj->type].name);
 
     fatal(obj, loc,
@@ -1096,7 +1095,7 @@ Question the user about a fatal move.  If the user responds 'y',
 print out the response and kill the object.
 */
 
-void fatal(piece_info_t *obj, loc_t loc, char *message, char *response) {
+void fatal(piece_info_t *obj, loc_t loc, const char *message, const char *response) {
   if (getyn(message)) {
     comment(response);
     kill_obj(obj, loc);

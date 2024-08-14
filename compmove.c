@@ -16,7 +16,6 @@ For each move the user wants us to make, we do the following:
 */
 
 #include <string.h>
-#include "empire.h"
 #include "extern.h"
 
 static view_map_t emap[MAP_SIZE]; /* pruned explore map */
@@ -27,7 +26,7 @@ bool overproduced(city_info_t *cityp, int *city_count);
 bool nearby_load(piece_info_t *obj, loc_t loc);
 count_t nearby_count(loc_t loc);
 void move_objective(piece_info_t *obj, path_map_t pathmap[], loc_t new_loc,
-                    char *adj_list);
+                    const char *adj_list);
 void comp_set_prod(city_info_t *, int);
 void comp_set_needed(city_info_t *, int *, bool, bool);
 void comp_prod(city_info_t *, bool);
@@ -346,7 +345,7 @@ static view_map_t amap[MAP_SIZE]; /* temp view map */
 static path_map_t path_map[MAP_SIZE];
 
 void do_pieces(void) {
-  void cpiece_move();
+  void cpiece_move(piece_info_t *obj);
 
   int i;
   piece_info_t *obj, *next_obj;
@@ -367,7 +366,7 @@ objective.
 */
 
 void cpiece_move(piece_info_t *obj) {
-  void move1();
+  void move1(piece_info_t *obj);
 
   bool changed_loc;
   int max_hits;
@@ -417,7 +416,7 @@ Move a piece one square.
 */
 
 void move1(piece_info_t *obj) {
-  void army_move(), transport_move(), fighter_move(), ship_move();
+  void army_move(piece_info_t *obj), transport_move(piece_info_t *obj), fighter_move(piece_info_t *obj), ship_move(piece_info_t *obj);
 
   switch (obj->type) {
     case ARMY:
@@ -465,10 +464,10 @@ destination.  (If there is no destination, sit around and wait.)
 */
 
 void army_move(piece_info_t *obj) {
-  loc_t move_away();
-  loc_t find_attack();
-  void make_army_load_map(), make_unload_map(), make_tt_load_map();
-  void board_ship();
+  loc_t move_away(view_map_t *vmap, loc_t loc, const char *terrain);
+  loc_t find_attack(loc_t loc, const char *obj_list, const char *terrain);
+  void make_army_load_map(piece_info_t *obj, view_map_t *xmap, view_map_t *vmap), make_unload_map(view_map_t *xmap, view_map_t *vmap), make_tt_load_map(view_map_t *xmap, view_map_t *vmap);
+  void board_ship(piece_info_t *obj, path_map_t *pmap, loc_t dest);
 
   loc_t new_loc;
   path_map_t path_map2[MAP_SIZE];
@@ -753,7 +752,7 @@ Return the first location we find adjacent to the current location of
 the correct terrain.
 */
 
-loc_t move_away(view_map_t *vmap, loc_t loc, char *terrain) {
+loc_t move_away(view_map_t *vmap, loc_t loc, const char *terrain) {
   loc_t new_loc;
   int i;
 
@@ -773,10 +772,10 @@ If there is an object we can attack, we return the location of the
 best of these.
 */
 
-loc_t find_attack(loc_t loc, char *obj_list, char *terrain) {
+loc_t find_attack(loc_t loc, const char *obj_list, const char *terrain) {
   loc_t new_loc, best_loc;
   int i, best_val;
-  char *p;
+  const char *p;
 
   best_loc = loc; /* nothing found yet */
   best_val = INFINITY;
@@ -887,7 +886,7 @@ something to attack.
 
 void ship_move(piece_info_t *obj) {
   loc_t new_loc;
-  char *adj_list;
+  const char *adj_list;
 
   if (obj->hits < piece_attr[obj->type].max_hits) { /* head to port */
     if (comp_map[obj->loc].contents == 'X') {       /* stay in port */
@@ -920,8 +919,8 @@ Move to an objective.
 */
 
 void move_objective(piece_info_t *obj, path_map_t pathmap[], loc_t new_loc,
-                    char *adj_list) {
-  char *terrain;
+                    const char *adj_list) {
+  const char *terrain;
   int d;
   bool reuse; /* true iff we should reuse old map */
   loc_t old_loc;
@@ -987,7 +986,7 @@ void move_objective(piece_info_t *obj, path_map_t pathmap[], loc_t new_loc,
 
   /* Try to make more moves using same path map. */
   if (reuse && obj->moved < obj_moves(obj) && obj->loc != old_dest) {
-    char *attack_list;
+    const char *attack_list;
     /* check for immediate attack */
     switch (obj->type) {
       case FIGHTER:

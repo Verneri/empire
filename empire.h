@@ -261,7 +261,7 @@ typedef struct {
 
 typedef struct {
   char city_owner;  /* char that represents home city */
-  char *objectives; /* list of objectives */
+  const char *objectives; /* list of objectives */
   int weights[11];  /* weight of each objective */
 } move_info_t;
 

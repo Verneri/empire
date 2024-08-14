@@ -15,20 +15,19 @@ util.c -- various utility routines.
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include "empire.h"
 #include "extern.h"
 
 /*
 Report a bug.
 */
 
-void assert(char *expression, char *file, int line) {
+void assert(const char *expression, const char *file, int line) {
   char buf[STRSIZE];
 
   (void)move(lines, 0);
   close_disp();
 
-  (void)sprintf(buf, "assert failed: file %s line %d: %s", file, line,
+  (void)snprintf(buf, STRSIZE, "assert failed: file %s line %d: %s", file, line,
                 expression);
 
   kill(getpid(), SIGSEGV); /* core dump */
@@ -73,7 +72,7 @@ static bool in_loc[LIST_SIZE];   /* true if object in a loc list */
 static bool in_cargo[LIST_SIZE]; /* true if object in a cargo list */
 
 void check(void) {
-  void check_cargo(), check_obj(), check_obj_cargo();
+  void check_cargo(piece_info_t *list, int cargo_type), check_obj(piece_info_t **list, int owner), check_obj_cargo(piece_info_t **list);
 
   long i, j;
   piece_info_t *p;

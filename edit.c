@@ -13,19 +13,18 @@ edit.c -- Routines to handle edit mode commands.
 #include <curses.h>
 #include <stdio.h>
 #include <string.h>
-#include "empire.h"
 #include "extern.h"
 
 void e_move(loc_t *path_start, loc_t loc);
 extern int get_piece_name(void);
 
 void edit(loc_t edit_cursor) {
-  char e_cursor();
-  void e_leave(), e_print(), e_random();
-  void e_stasis(), e_end(), e_wake(), e_sleep();
-  void e_info(), e_prod(), e_help(), e_explore();
-  void e_fill(), e_land(), e_city_func(), e_transport();
-  void e_attack(), e_repair();
+  char e_cursor(loc_t *edit_cursor);
+  void e_leave(void), e_print(loc_t *edit_cursor), e_random(loc_t loc);
+  void e_stasis(loc_t loc), e_end(loc_t *path_start, loc_t loc, int path_type), e_wake(loc_t loc), e_sleep(loc_t loc);
+  void e_info(loc_t edit_cursor), e_prod(loc_t loc), e_help(void), e_explore(loc_t loc);
+  void e_fill(loc_t loc), e_land(loc_t loc), e_city_func(loc_t *path_start, loc_t loc, int *path_type), e_transport(loc_t loc);
+  void e_attack(loc_t loc), e_repair(loc_t loc);
 
   loc_t path_start;
   int path_type;
@@ -488,13 +487,13 @@ void e_city_info(loc_t edit_cursor) {
     if (obj->type >= DESTROYER) s++;
 
   if (f == 1 && s == 1)
-    (void)sprintf(jnkbuf, "1 fighter landed, 1 ship docked");
+    (void)snprintf(jnkbuf, STRSIZE, "1 fighter landed, 1 ship docked");
   else if (f == 1)
-    (void)sprintf(jnkbuf, "1 fighter landed, %d ships docked", s);
+    (void)snprintf(jnkbuf, STRSIZE, "1 fighter landed, %d ships docked", s);
   else if (s == 1)
-    (void)sprintf(jnkbuf, "%d fighters landed, 1 ship docked", f);
+    (void)snprintf(jnkbuf, STRSIZE, "%d fighters landed, 1 ship docked", f);
   else
-    (void)sprintf(jnkbuf, "%d fighters landed, %d ships docked", f, s);
+    (void)snprintf(jnkbuf, STRSIZE, "%d fighters landed, %d ships docked", f, s);
 
   cityp = find_city(edit_cursor);
   ASSERT(cityp != NULL);
@@ -502,16 +501,16 @@ void e_city_info(loc_t edit_cursor) {
   *func_buf = 0;                      /* nothing in buffer */
   for (s = 0; s < NUM_OBJECTS; s++) { /* for each piece */
     if (cityp->func[s] < 0)
-      (void)sprintf(temp_buf, "%c:%s; ", piece_attr[s].sname,
+      (void)snprintf(temp_buf, STRSIZE, "%c:%s; ", piece_attr[s].sname,
                     func_name[FUNCI(cityp->func[s])]);
     else
-      (void)sprintf(temp_buf, "%c: %d;", piece_attr[s].sname,
+      (void)snprintf(temp_buf, STRSIZE, "%c: %d;", piece_attr[s].sname,
                     loc_disp(cityp->func[s]));
 
     (void)strcat(func_buf, temp_buf);
   }
 
-  (void)sprintf(junk_buf2, "City at location %d will complete %s on round %ld",
+  (void)snprintf(junk_buf2, STRSIZE, "City at location %d will complete %s on round %ld",
                 loc_disp(cityp->loc), piece_attr[(int)cityp->prod].article,
                 date + piece_attr[(int)cityp->prod].build_time - cityp->work);
 

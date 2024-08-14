@@ -13,7 +13,6 @@ game.c -- Routines to initialize, save, and restore a game.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "empire.h"
 #include "extern.h"
 
 count_t remove_land(loc_t loc, count_t num_land);
@@ -166,7 +165,7 @@ for a city, we remove land cells which are too close to the city.
 static loc_t land[MAP_SIZE];
 
 void place_cities(void) {
-  count_t regen_land();
+  count_t regen_land(count_t placed);
 
   count_t placed, i;
   loc_t loc;
@@ -175,7 +174,7 @@ void place_cities(void) {
   num_land = 0; /* nothing in land array yet */
   placed = 0;   /* nothing placed yet */
   while (placed < NUM_CITY) {
-    while (num_land == 0) num_land = regen_land(placed);
+    while (num_land == 0) num_land = regen_land(placed); 
     i = irand(num_land - 1); /* select random piece of land */
     loc = land[i];
 
@@ -228,16 +227,16 @@ Remove land that is too close to a city.
 */
 
 count_t remove_land(loc_t loc, count_t num_land) {
-  count_t new, i;
+  count_t new_land, i;
 
-  new = 0; /* nothing kept yet */
+  new_land = 0; /* nothing kept yet */
   for (i = 0; i < num_land; i++) {
     if (dist(loc, land[i]) >= MIN_CITY_DIST) {
-      land[new] = land[i];
-      new ++;
+      land[new_land] = land[i];
+      new_land ++;
     }
   }
-  return (new);
+  return (new_land);
 }
 
 /*
@@ -303,8 +302,11 @@ bool select_cities(void) {
 
   make_pair(); /* create list of ranked pairs */
 
-  (void)sprintf(jnkbuf,
-                "Choose a difficulty level where 0 is easy and %d is hard: ",
+  const char* choose = "Choose a difficulty level where 0 is easy and %d is hard: ";
+
+
+  (void)snprintf(jnkbuf, strlen(choose),
+                choose,
                 ncont * ncont - 1);
 
   pair = get_range(jnkbuf, 0, ncont * ncont - 1);
@@ -532,7 +534,7 @@ We return true if we succeed, otherwise false.
   if (!xread(f, (char *)&val, sizeof(val))) return (false);
 
 int restore_game(void) {
-  void read_embark();
+  void read_embark(piece_info_t *list, int piece_type);
 
   FILE *f; /* file to save game in */
   long i;
@@ -726,7 +728,7 @@ print it using a zoomed display.
 */
 
 void replay_movie(void) {
-  void print_movie_cell();
+  void print_movie_cell(char *mbuf, int row, int col, int row_inc, int col_inc);
 
   FILE *f; /* file to save game in */
   int row_inc, col_inc;
@@ -771,13 +773,13 @@ The "xxxxx" field is the cumulative cost of building the hardware.
 */
 
 /* in declared order, with city first */
-static char *pieces = "OAFPDSTCBZXafpdstcbz";
+static const char *pieces = "OAFPDSTCBZXafpdstcbz";
 
 void stat_display(char *mbuf, int round) {
   count_t i;
   int counts[2 * NUM_OBJECTS + 2];
   int user_cost, comp_cost;
-  char *p;
+  const char *p;
 
   (void)memset((char *)counts, '\0', sizeof(counts));
 

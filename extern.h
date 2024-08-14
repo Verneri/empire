@@ -8,6 +8,15 @@
 /*
 extern.h -- define global non-constant storage.
 */
+#include "empire.h"
+
+#if 0 && defined(_LP64)
+typedef unsigned chtype;
+typedef unsigned mmask_t;
+#else
+typedef unsigned int chtype;
+typedef unsigned long mmask_t;
+#endif
 
 /* user-supplied parameters */
 int SMOOTH;        /* number of times to smooth map */
@@ -40,7 +49,7 @@ int cols;  /* columns on screen */
 /* constant data */
 extern piece_attr_t piece_attr[];
 extern int dir_offset[];
-extern char *func_name[];
+extern const char *func_name[];
 extern int move_order[];
 extern char type_chars[];
 extern char tt_attack[];
@@ -82,7 +91,7 @@ char jnkbuf[STRSIZE]; /* general purpose temporary buffer */
 bool save_movie;      /* true iff we should save movie screens */
 int user_score;       /* "score" for user and computer */
 int comp_score;
-char *savefile;
+const char *savefile;
 
 /* Screen updating macros */
 #define display_loc_u(loc) display_loc(USER, user_map, loc)
@@ -137,15 +146,15 @@ void vmap_mark_path(path_map_t *path_map, view_map_t *vmap, long dest);
 void vmap_mark_adjacent(path_map_t path_map[], long loc);
 void vmap_mark_near_path(path_map_t path_map[], long loc);
 long vmap_find_dir(path_map_t path_map[], view_map_t *vmap, long loc,
-                   char *terrain, char *adjchar);
-int vmap_count_adjacent(view_map_t *vmap, long loc, char *adj_char);
+                   const char *terrain, const char *adjchar);
+int vmap_count_adjacent(view_map_t *vmap, long loc, const char *adj_char);
 bool vmap_shore(view_map_t *vmap, long loc);
 bool rmap_shore(long loc);
 bool vmap_at_sea(view_map_t *vmap, long loc);
 bool rmap_at_sea(long loc);
 
 /* display routines */
-void announce(char *);
+void announce(const char *);
 void redisplay(void);
 void kill_display(void);
 void sector_change(void);
@@ -156,7 +165,7 @@ void display_locx(int whose, view_map_t vmap[], long loc);
 void print_sector(int whose, view_map_t vmap[], int sector);
 bool move_cursor(long *cursor, int offset);
 void print_zoom(view_map_t *vmap);
-void print_pzoom(char *s, path_map_t *pmap, view_map_t *vmap);
+void print_pzoom(const char *s, path_map_t *pmap, view_map_t *vmap);
 void print_xzoom(view_map_t *vmap);
 void display_score(void);
 #ifdef A_COLOR
@@ -167,8 +176,8 @@ void clear_screen(void);
 void complain(void);
 void delay(void);
 void close_disp(void);
-void pos_str(int row, int col, char *str, ...);
-int direction();
+void pos_str(int row, int col, const char *str, ...);
+int direction(chtype c);
 
 void init_game(void); /* game routines */
 void save_game(void);
@@ -179,11 +188,11 @@ void replay_movie(void);
 void get_str(char *buf, int sizep); /* input routines */
 void get_strq(char *buf, int sizep);
 char get_chx(void);
-int getint(char *message);
+int getint(const char *message);
 char get_c(void);
 char get_cq(void);
-bool getyn(char *message);
-int get_range(char *message, int low, int high);
+bool getyn(const char *message);
+int get_range(const char *message, int low, int high);
 
 void rndini(void); /* math routines */
 long irand(long high);
@@ -212,23 +221,23 @@ void scan_sat(view_map_t *vmap, long loc);
 void set_prod(city_info_t *cityp);
 
 /* terminal routines */
-void pdebug(char *s, ...);
+void pdebug(const char *s, ...);
 void topini(void);
 void clreol(int line, int colp);
-void topmsg(int line, char *fmt, ...);
-void prompt(char *fmt, ...);
-void error(char *fmt, ...);
-void info(char *a, char *b, char *c);
-void comment(char *fmt, ...);
-void extra(char *fmt, ...);
+void topmsg(int line, const char *fmt, ...);
+void prompt(const char *fmt, ...);
+void error(const char *fmt, ...);
+void info(const char *a, const char *b, const char *c);
+void comment(const char *fmt, ...);
+void extra(const char *fmt, ...);
 void huh(void);
 void help(char **text, int nlines);
 void set_need_delay(void);
-void ksend(char *fmt, ...);
+void ksend(const char *fmt, ...);
 
 /* utility routines */
 void ttinit(void);
-void assert(char *expression, char *file, int line);
+void assert(const char *expression, const char *file, int line);
 void empend(void);
 char upper(char c);
 void tupper(char *str);
