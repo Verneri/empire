@@ -20,6 +20,7 @@ pub fn build(b: *std.Build) void {
         .name = "vms-empire",
         .target = target,
         .optimize = std.builtin.OptimizeMode.ReleaseSafe,
+        .link_libc = true,
     });
     empire.linkSystemLibrary("ncurses");
     empire.addIncludePath(.{ .cwd_relative = "." });
