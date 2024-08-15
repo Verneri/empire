@@ -91,7 +91,7 @@ extern char jnkbuf[STRSIZE]; /* general purpose temporary buffer */
 extern bool save_movie;      /* true iff we should save movie screens */
 extern int user_score;       /* "score" for user and computer */
 extern int comp_score;
-extern const char *savefile;
+extern char *savefile;
 
 /* Screen updating macros */
 #define display_loc_u(loc) display_loc(USER, user_map, loc)

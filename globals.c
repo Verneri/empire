@@ -39,4 +39,4 @@ char jnkbuf[STRSIZE]; /* general purpose temporary buffer */
 bool save_movie;      /* true iff we should save movie screens */
 int user_score;       /* "score" for user and computer */
 int comp_score;
-const char *savefile;
+char *savefile;

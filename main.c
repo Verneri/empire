@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
   sflg = 5;
   dflg = 2000;
   Sflg = 10;
-  savefile = "empsave.dat";
+  savefile = (char *)"empsave.dat";
 
   /*
    * extract command line options
