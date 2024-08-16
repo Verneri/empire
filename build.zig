@@ -14,12 +14,12 @@ pub fn build(b: *std.Build) void {
     // Standard optimization options allow the person running `zig build` to select
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
     // set a preferred release mode, allowing the user to decide how to optimize.
-    //const optimize = b.standardOptimizeOption(.{});
+    const optimize = b.standardOptimizeOption(.{});
 
     const empire = b.addExecutable(.{
         .name = "vms-empire",
         .target = target,
-        .optimize = std.builtin.OptimizeMode.ReleaseSafe,
+        .optimize = optimize,
         .link_libc = true,
     });
     empire.linkSystemLibrary("ncurses");
