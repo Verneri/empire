@@ -23,8 +23,9 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
     empire.linkSystemLibrary("ncurses");
-    empire.addIncludePath(.{ .cwd_relative = "." });
+    empire.addIncludePath(.{ .cwd_relative = "include" });
     empire.addCSourceFiles(.{
+        .root = .{ .cwd_relative = "csrc" },
         .files = &.{
             "attack.c",
             "compmove.c",
