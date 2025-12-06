@@ -18,9 +18,11 @@ pub fn build(b: *std.Build) void {
 
     const empire = b.addExecutable(.{
         .name = "vms-empire",
-        .target = target,
-        .optimize = optimize,
-        .link_libc = true,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
     });
     empire.linkSystemLibrary("ncurses");
     empire.addIncludePath(.{ .cwd_relative = "include" });
