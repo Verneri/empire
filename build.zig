@@ -22,6 +22,7 @@ pub fn build(b: *std.Build) void {
             .target = target,
             .optimize = optimize,
             .link_libc = true,
+            .root_source_file = b.path("src/main.zig"),
         }),
     });
     empire.linkSystemLibrary("ncurses");
@@ -36,7 +37,6 @@ pub fn build(b: *std.Build) void {
             "edit.c",
             "empire.c",
             "game.c",
-            "main.c",
             "map.c",
             "math.c",
             "object.c",

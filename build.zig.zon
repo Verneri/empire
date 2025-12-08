@@ -2,6 +2,6 @@
     .name = .vms_empire,
     .version = "0.0.1",
     .minimum_zig_version = "0.15.2",
-    .paths = .{""},
+    .paths = .{ "csrc", "include", "src" },
     .fingerprint = 0x77c007f204c1478c,
 }
