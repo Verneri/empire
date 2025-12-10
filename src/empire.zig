@@ -187,7 +187,11 @@ fn c_give() void {
     scan(&globals.comp_map, globals.city[given_i].loc);
 }
 
-pub extern fn c_quit() void;
+fn c_quit() void {
+    if (getyn("QUIT - Are you sure? ")) {
+        empend();
+    }
+}
 
 pub extern fn c_examine() void;
 pub extern fn c_map() void;
@@ -257,3 +261,6 @@ pub extern fn redraw() void;
 
 pub extern fn irand(high: c_long) c_long;
 pub extern fn scan(vmap: [*c]types.view_map_t, loc: c_long) void;
+pub extern fn getyn(message: [*c]const u8) bool;
+
+pub extern fn empend() void;

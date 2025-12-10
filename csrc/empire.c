@@ -263,11 +263,11 @@ The order cannot be any legal command.
 The quit command.  Make sure the user really wants to quit.
 */
 
-void c_quit(void) {
-  if (getyn("QUIT - Are you sure? ")) {
-    empend();
-  }
-}
+// void c_quit(void) {
+//   if (getyn("QUIT - Are you sure? ")) {
+//     empend();
+//   }
+// }
 
 /*
 Print a sector.  Read the sector number from the user
