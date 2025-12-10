@@ -165,11 +165,33 @@ fn c_debug(orders: u8) void {
     }
 }
 
+fn c_give() void {
+    var unowned: [globals.NUM_CITY]usize = undefined;
+    var count: usize = 0;
+    for (&globals.city, 0..) |*city, i| {
+        if (city.owner == @intFromEnum(globals.Ownership.Unowned)) {
+            unowned[count] = i;
+            count += 1;
+        }
+    }
+    if (count == 0) {
+        @"error"("There are no unowned cities.");
+        ksend("There are no unowned cities.");
+        return;
+    }
+    const i: usize = @intCast(irand(@intCast(count)));
+    const given_i = unowned[i];
+    globals.city[given_i].owner = @intFromEnum(globals.Ownership.Comp);
+    globals.city[given_i].prod = @intFromEnum(globals.PieceType.NoPiece);
+    globals.city[given_i].work = 0;
+    scan(&globals.comp_map, globals.city[given_i].loc);
+}
+
+pub extern fn c_quit() void;
+
 pub extern fn c_examine() void;
-pub extern fn c_give() void;
 pub extern fn c_map() void;
 pub extern fn c_sector() void;
-pub extern fn c_quit() void;
 pub extern fn c_movie() void;
 
 pub extern fn ttinit() void;
@@ -226,8 +248,12 @@ pub inline fn sector_loc(sector: c_int) c_long {
 
 pub extern fn getint(message: [*c]const u8) c_int;
 pub extern fn comment(fmt: [*c]const u8, ...) void;
+pub extern fn ksend(fmt: [*c]const u8, ...) void;
 
 pub extern fn replay_movie() void;
 
 pub extern fn print_zoom(vmap: [*c]types.view_map_t) void;
 pub extern fn redraw() void;
+
+pub extern fn irand(high: c_long) c_long;
+pub extern fn scan(vmap: [*c]types.view_map_t, loc: c_long) void;

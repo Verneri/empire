@@ -11,6 +11,26 @@ pub const NUM_SECTORS = SECTOR_ROWS * SECTOR_COLS;
 pub const ROWS_PER_SECTOR = @import("std").zig.c_translation.MacroArithmetic.div((MAP_HEIGHT + SECTOR_ROWS) - @as(c_int, 1), SECTOR_ROWS);
 pub const COLS_PER_SECTOR = @import("std").zig.c_translation.MacroArithmetic.div((MAP_WIDTH + SECTOR_COLS) - @as(c_int, 1), SECTOR_COLS);
 
+pub const Ownership = enum(c_int) {
+    Unowned = 0,
+    User = 1,
+    Comp = 2,
+};
+
+pub const PieceType = enum(c_int) {
+    Army = 0,
+    Fighter = 1,
+    Patrol = 2,
+    Destroyer = 3,
+    SubMarine = 4,
+    Transport = 5,
+    Carrier = 6,
+    Battleship = 7,
+    Satellite = 8,
+    NumObjects = 9,
+    NoPiece = 255,
+};
+
 pub extern var SMOOTH: c_int;
 pub extern var WATER_RATIO: c_int;
 pub extern var MIN_CITY_DIST: c_int;
@@ -27,3 +47,4 @@ pub extern var user_map: [MAP_SIZE]types.view_map_t;
 pub extern var print_debug: bool;
 pub extern var print_vmap: u8;
 pub extern var trace_pmap: bool;
+pub extern var city: [NUM_CITY]types.city_info_t;
