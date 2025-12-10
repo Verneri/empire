@@ -274,12 +274,12 @@ Print a sector.  Read the sector number from the user
 and print it.
 */
 
-void c_sector(void) {
-  int num;
-
-  num = get_range("Sector number? ", 0, NUM_SECTORS - 1);
-  print_sector_u(num);
-}
+// void c_sector(void) {
+//   int num;
+//
+//   num = get_range("Sector number? ", 0, NUM_SECTORS - 1);
+//   print_sector_u(num);
+// }
 
 /*
 Print the map to a file.  We ask for a filename, attempt to open the
@@ -288,33 +288,33 @@ We print the map sideways to make it easier for the user to print
 out the map.
 */
 
-void c_map(void) {
-  FILE *f;
-  int i, j;
-  char line[MAP_HEIGHT + 2];
-
-  prompt("Filename? ");
-  get_str(jnkbuf, STRSIZE);
-
-  f = fopen(jnkbuf, "w");
-  if (f == NULL) {
-    error("I can't open that file.");
-    return;
-  }
-  for (i = 0; i < MAP_WIDTH; i++) {         /* for each column */
-    for (j = MAP_HEIGHT - 1; j >= 0; j--) { /* for each row */
-      line[MAP_HEIGHT - 1 - j] = user_map[row_col_loc(j, i)].contents;
-    }
-    j = MAP_HEIGHT - 1;
-    while (j >= 0 && line[j] == ' ') /* scan off trailing blanks */
-      j -= 1;
-
-    line[++j] = '\n';
-    line[++j] = 0; /* trailing null */
-    (void)fputs(line, f);
-  }
-  (void)fclose(f);
-}
+// void c_map(void) {
+//   FILE *f;
+//   int i, j;
+//   char line[MAP_HEIGHT + 2];
+//
+//   prompt("Filename? ");
+//   get_str(jnkbuf, STRSIZE);
+//
+//   f = fopen(jnkbuf, "w");
+//   if (f == NULL) {
+//     error("I can't open that file.");
+//     return;
+//   }
+//   for (i = 0; i < MAP_WIDTH; i++) {         /* for each column */
+//     for (j = MAP_HEIGHT - 1; j >= 0; j--) { /* for each row */
+//       line[MAP_HEIGHT - 1 - j] = user_map[row_col_loc(j, i)].contents;
+//     }
+//     j = MAP_HEIGHT - 1;
+//     while (j >= 0 && line[j] == ' ') /* scan off trailing blanks */
+//       j -= 1;
+//
+//     line[++j] = '\n';
+//     line[++j] = 0; /* trailing null */
+//     (void)fputs(line, f);
+//   }
+//   (void)fclose(f);
+// }
 
 /*
 Allow user to examine the computer's map.

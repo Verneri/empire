@@ -10,6 +10,7 @@ pub const SECTOR_COLS = @as(c_int, 2);
 pub const NUM_SECTORS = SECTOR_ROWS * SECTOR_COLS;
 pub const ROWS_PER_SECTOR = @import("std").zig.c_translation.MacroArithmetic.div((MAP_HEIGHT + SECTOR_ROWS) - @as(c_int, 1), SECTOR_ROWS);
 pub const COLS_PER_SECTOR = @import("std").zig.c_translation.MacroArithmetic.div((MAP_WIDTH + SECTOR_COLS) - @as(c_int, 1), SECTOR_COLS);
+pub const STRSIZE = 400;
 
 pub const Ownership = enum(c_int) {
     Unowned = 0,

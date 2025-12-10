@@ -193,9 +193,39 @@ fn c_quit() void {
     }
 }
 
+fn c_sector() void {
+    const num = get_range("Sector number? ", 0, globals.NUM_SECTORS - 1);
+    print_sector_u(num);
+}
+
+fn c_map() void {
+    prompt("Filename? ");
+    var jnkbuf: [globals.STRSIZE]u8 = undefined;
+    get_str(jnkbuf[0..], globals.STRSIZE);
+    var idx: usize = 0;
+    while (jnkbuf[idx] != 0) : (idx += 1) {}
+    var f = std.fs.cwd().createFile(jnkbuf[0..idx], .{}) catch {
+        @"error"("I can't open that file.");
+        return;
+    };
+    defer f.close();
+    var line: [globals.MAP_HEIGHT + 2]u8 = undefined;
+    for (0..globals.MAP_WIDTH) |i| {
+        var j = globals.MAP_HEIGHT - 1;
+        while (j >= 0) : (j -= 1) {
+            line[@intCast(globals.MAP_HEIGHT - 1 - j)] = globals.user_map[@intCast(row_col_loc(@intCast(j), @intCast(i)))].contents;
+        }
+        j = globals.MAP_HEIGHT - 1;
+        while (j >= 0 and line[@intCast(j)] == ' ') : (j -= 1) {}
+        line[@intCast(j + 1)] = '\n';
+        line[@intCast(j + 2)] = 0;
+        f.writeAll(line[0..@intCast(j + 2)]) catch {
+            @"error"("Write failed.");
+        };
+    }
+}
+
 pub extern fn c_examine() void;
-pub extern fn c_map() void;
-pub extern fn c_sector() void;
 pub extern fn c_movie() void;
 
 pub extern fn ttinit() void;
@@ -264,3 +294,14 @@ pub extern fn scan(vmap: [*c]types.view_map_t, loc: c_long) void;
 pub extern fn getyn(message: [*c]const u8) bool;
 
 pub extern fn empend() void;
+pub extern fn get_range(message: [*c]const u8, low: c_int, high: c_int) c_int;
+
+pub inline fn print_sector_u(sector: c_int) void {
+    print_sector(@intFromEnum(globals.Ownership.User), &globals.user_map, sector);
+}
+
+pub inline fn print_sector_c(sector: c_int) void {
+    print_sector(@intFromEnum(globals.Ownership.Comp), &globals.comp_map, sector);
+}
+pub extern fn print_sector(whose: c_int, vmap: [*c]types.view_map_t, sector: c_int) void;
+pub extern fn get_str(buf: [*c]u8, sizep: c_int) void;
