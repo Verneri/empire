@@ -225,8 +225,18 @@ fn c_map() void {
     }
 }
 
-pub extern fn c_examine() void;
-pub extern fn c_movie() void;
+fn c_examine() void {
+    const num = get_range("Sector number? ", 0, globals.NUM_SECTORS - 1);
+    print_sector_c(num);
+}
+
+fn c_movie() void {
+    while (true) {
+        comp_move(1);
+        print_zoom(&globals.comp_map);
+        save_game();
+    }
+}
 
 pub extern fn ttinit() void;
 pub extern fn rndini() void;

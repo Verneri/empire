@@ -114,7 +114,6 @@ extern char *savefile;
 
 /* global routines */
 
-void empire(void);
 
 void attack(piece_info_t *att_obj, long loc);
 void comp_move(int nmoves);
