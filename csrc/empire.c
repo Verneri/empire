@@ -23,165 +23,165 @@ void c_examine(void), c_movie(void);
  * 01a 01Sep83 cal .Taken from a Decus tape
  */
 
-void empire(void) {
-  void do_command(char);
-  void print_zoom(view_map_t *vmap);
-
-  char order;
-  int turn = 0;
- 
-  ttinit(); /* init tty */
-  rndini(); /* init random number generator */
-
-  clear_screen(); /* nothing on screen */
-  pos_str(7, 0, "EMPIRE, Version 5.00 site Amdahl 1-Apr-1988");
-  pos_str(8, 0, "Detailed directions are in EMPIRE.DOC\n");
-  (void)redisplay();
-
-  if (!restore_game()) /* try to restore previous game */
-    init_game();       /* otherwise init a new game */
-
-  /* Command loop starts here. */
-
-  for (;;) {        /* until user quits */
-    if (automove) { /* don't ask for cmd in auto mode */
-      user_move();
-      comp_move(1);
-      if (++turn % save_interval == 0) save_game();
-    } else {
-      prompt(""); /* blank top line */
-      redisplay();
-      prompt("Your orders? ");
-      order = get_chx(); /* get a command */
-      do_command(order);
-    }
-  }
-}
+//  void empire(void) {
+//    void do_command(char);
+//    void print_zoom(view_map_t *vmap);
+//
+//    char order;
+//    int turn = 0;
+//  
+//    ttinit(); /* init tty */
+//    rndini(); /* init random number generator */
+//
+//    clear_screen(); /* nothing on screen */
+//    pos_str(7, 0, "EMPIRE, Version 5.00 site Amdahl 1-Apr-1988");
+//    pos_str(8, 0, "Detailed directions are in EMPIRE.DOC\n");
+//    (void)redisplay();
+//
+//    if (!restore_game()) /* try to restore previous game */
+//      init_game();       /* otherwise init a new game */
+//
+//    /* Command loop starts here. */
+//
+//    for (;;) {        /* until user quits */
+//      if (automove) { /* don't ask for cmd in auto mode */
+//        user_move();
+//        comp_move(1);
+//        if (++turn % save_interval == 0) save_game();
+//      } else {
+//        prompt(""); /* blank top line */
+//        redisplay();
+//        prompt("Your orders? ");
+//        order = get_chx(); /* get a command */
+//        do_command(order);
+//      }
+//    }
+//  }
 
 /*
 Execute a command.
 */
 
-void do_command(char orders) {
-  void c_debug(char order), c_quit(void), c_sector(void), c_map(void);
-  void c_give(void);
-
-  char e;
-  int ncycle;
-
-  switch (orders) {
-    case 'A': /* turn on auto move mode */
-      automove = true;
-      error("Now in Auto-Mode");
-      user_move();
-      comp_move(1);
-      save_game();
-      break;
-
-    case 'C': /* give a city to the computer */
-      c_give();
-      break;
-
-    case 'D': /* display round number */
-      error("Round #%d", date);
-      break;
-
-    case 'E': /* examine enemy map */
-      if (resigned)
-        c_examine();
-      else
-        huh(); /* illegal command */
-      break;
-
-    case 'F': /* print map to file */
-      c_map();
-      break;
-
-    case 'G': /* give one free enemy move */
-      comp_move(1);
-      break;
-
-    case 'H': /* help */
-      help(help_cmd, cmd_lines);
-      break;
-
-    case 'J': /* edit mode */
-      ncycle = cur_sector();
-      if (ncycle == -1) ncycle = 0;
-      edit(sector_loc(ncycle));
-      break;
-
-    case 'M': /* move */
-      user_move();
-      comp_move(1);
-      save_game();
-      break;
-
-    case 'N': /* give enemy free moves */
-      ncycle = getint("Number of free enemy moves: ");
-      comp_move(ncycle);
-      save_game();
-      break;
-
-    case 'P': /* print a sector */
-      c_sector();
-      break;
-
-    case '\026': /* some interrupt */
-    case 'Q':    /* quit */
-      c_quit();
-      break;
-
-    case 'R': /* restore game */
-      clear_screen();
-      e = restore_game();
-      break;
-
-    case 'S': /* save game */
-      save_game();
-      break;
-
-    case 'T': /* trace: toggle save_movie flag */
-      save_movie = !save_movie;
-      if (save_movie)
-        comment("Saving movie screens to 'empmovie.dat'.");
-      else
-        comment("No longer saving movie screens.");
-      break;
-
-    case 'W': /* watch movie */
-      if (resigned || debug)
-        replay_movie();
-      else
-        error("You cannot watch movie until computer resigns.");
-      break;
-
-    case 'Z': /* print compressed map */
-      print_zoom(user_map);
-      break;
-
-    case '\014': /* redraw the screen */
-      redraw();
-      break;
-
-    case '+': /* change debug state */
-      e = get_chx();
-      if (e == '+')
-        debug = true;
-      else if (e == '-')
-        debug = false;
-      else
-        huh();
-      break;
-
-    default:
-      if (debug)
-        c_debug(orders); /* debug */
-      else
-        huh(); /* illegal command */
-      break;
-  }
-}
+// void do_command(char orders) {
+//   void c_debug(char order), c_quit(void), c_sector(void), c_map(void);
+//   void c_give(void);
+//
+//   char e;
+//   int ncycle;
+//
+//   switch (orders) {
+//     case 'A': /* turn on auto move mode */
+//       automove = true;
+//       error("Now in Auto-Mode");
+//       user_move();
+//       comp_move(1);
+//       save_game();
+//       break;
+//
+//     case 'C': /* give a city to the computer */
+//       c_give();
+//       break;
+//
+//     case 'D': /* display round number */
+//       error("Round #%d", date);
+//       break;
+//
+//     case 'E': /* examine enemy map */
+//       if (resigned)
+//         c_examine();
+//       else
+//         huh(); /* illegal command */
+//       break;
+//
+//     case 'F': /* print map to file */
+//       c_map();
+//       break;
+//
+//     case 'G': /* give one free enemy move */
+//       comp_move(1);
+//       break;
+//
+//     case 'H': /* help */
+//       help(help_cmd, cmd_lines);
+//       break;
+//
+//     case 'J': /* edit mode */
+//       ncycle = cur_sector();
+//       if (ncycle == -1) ncycle = 0;
+//       edit(sector_loc(ncycle));
+//       break;
+//
+//     case 'M': /* move */
+//       user_move();
+//       comp_move(1);
+//       save_game();
+//       break;
+//
+//     case 'N': /* give enemy free moves */
+//       ncycle = getint("Number of free enemy moves: ");
+//       comp_move(ncycle);
+//       save_game();
+//       break;
+//
+//     case 'P': /* print a sector */
+//       c_sector();
+//       break;
+//
+//     case '\026': /* some interrupt */
+//     case 'Q':    /* quit */
+//       c_quit();
+//       break;
+//
+//     case 'R': /* restore game */
+//       clear_screen();
+//       e = restore_game();
+//       break;
+//
+//     case 'S': /* save game */
+//       save_game();
+//       break;
+//
+//     case 'T': /* trace: tgdoggle save_movie flag */
+//       save_movie = !save_movie;
+//       if (save_movie)
+//         comment("Saving movie screens to 'empmovie.dat'.");
+//       else
+//         comment("No longer saving movie screens.");
+//       break;
+//
+//     case 'W': /* watch movie */
+//       if (resigned || debug)
+//         replay_movie();
+//       else
+//         error("You cannot watch movie until computer resigns.");
+//       break;
+//
+//     case 'Z': /* print compressed map */
+//       print_zoom(user_map);
+//       break;
+//
+//     case '\014': /* redraw the screen */
+//       redraw();
+//       break;
+//
+//     case '+': /* change debug state */
+//       e = get_chx();
+//       if (e == '+')
+//         debug = true;
+//       else if (e == '-')
+//         debug = false;
+//       else
+//         huh();
+//       break;
+//
+//     default:
+//       if (debug)
+//         c_debug(orders); /* debug */
+//       else
+//         huh(); /* illegal command */
+//       break;
+//   }
+// }
 
 /*
 Give an unowned city (if any) to the computer.  We make

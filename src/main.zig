@@ -120,10 +120,18 @@ pub fn main() !void {
         save = @ptrCast(file[0 .. end + 1]);
     }
 
-    start_game(sflg, wflg, dflg, siflg, save);
+    var save_interval: u16 = undefined;
+    if (siflg > 0) {
+        save_interval = @intCast(siflg);
+    } else {
+        std.debug.print("empire: -S argument must be greater or equal to zero.\n", .{});
+        std.c.exit(1);
+    }
+
+    start_game(sflg, wflg, dflg, save_interval, save);
 }
 
-pub fn start_game(sflg: i32, wflg: i32, dflg: i32, siflg: i32, save: [:0]u8) void {
+pub fn start_game(sflg: i32, wflg: i32, dflg: i32, siflg: u16, save: [:0]u8) void {
     globals.SMOOTH = sflg;
     globals.WATER_RATIO = wflg;
     globals.delay_time = dflg;
@@ -131,11 +139,17 @@ pub fn start_game(sflg: i32, wflg: i32, dflg: i32, siflg: i32, save: [:0]u8) voi
 
     globals.savefile = save.ptr;
 
+    var land: u32 = @intCast(@divTrunc(globals.MAP_SIZE * (100 - globals.WATER_RATIO), 100)); // available land
+    land = @divTrunc(land, globals.NUM_CITY); // land per city
+    globals.MIN_CITY_DIST = std.math.sqrt(land); // distance betwen cities
+
     std.debug.print("water ratio: {}%\n", .{globals.WATER_RATIO});
     std.debug.print("smooth: {}\n", .{globals.SMOOTH});
     std.debug.print("delay time: {}\n", .{globals.delay_time});
     std.debug.print("save interval: {}\n", .{globals.save_interval});
     std.debug.print("savefile: {s}\n", .{globals.savefile});
+    std.debug.print("land per city: {}\n", .{land});
+    std.debug.print("min city dist: {}\n", .{globals.MIN_CITY_DIST});
 
     empire.empire();
 }

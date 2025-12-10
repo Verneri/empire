@@ -3,7 +3,7 @@ int SMOOTH;        /* number of times to smooth map */
 int WATER_RATIO;   /* percentage of map that is water */
 int MIN_CITY_DIST; /* cities must be at least this far apart */
 int delay_time;
-int save_interval; /* turns between autosaves */
+//int save_interval; /* turns between autosaves */
 
 real_map_t map[MAP_SIZE];      /* the way the world really looks */
 view_map_t comp_map[MAP_SIZE]; /* computer's view of the world */
