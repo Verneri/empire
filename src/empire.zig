@@ -132,12 +132,45 @@ fn do_command(orders: u8) void {
     }
 }
 
+fn c_debug(orders: u8) void {
+    switch (orders) {
+        '#' => {
+            c_examine();
+        },
+        '%' => {
+            c_movie();
+        },
+        '@' => {
+            const e = get_chx();
+            switch (e) {
+                '+' => globals.trace_pmap = true,
+                '-' => globals.trace_pmap = false,
+                else => huh(),
+            }
+        },
+        '$' => {
+            const e = get_chx();
+            switch (e) {
+                '+' => globals.print_debug = true,
+                '-' => globals.print_debug = false,
+                else => huh(),
+            }
+        },
+        '&' => {
+            globals.print_vmap = get_chx();
+        },
+        else => {
+            huh();
+        },
+    }
+}
+
 pub extern fn c_examine() void;
 pub extern fn c_give() void;
 pub extern fn c_map() void;
 pub extern fn c_sector() void;
-pub extern fn c_debug(arg_order: u8) void;
 pub extern fn c_quit() void;
+pub extern fn c_movie() void;
 
 pub extern fn ttinit() void;
 pub extern fn rndini() void;

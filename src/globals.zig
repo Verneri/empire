@@ -24,3 +24,6 @@ pub extern var save_movie: bool;
 pub extern var map: [MAP_SIZE]types.real_map_t;
 pub extern var comp_map: [MAP_SIZE]types.view_map_t;
 pub extern var user_map: [MAP_SIZE]types.view_map_t;
+pub extern var print_debug: bool;
+pub extern var print_vmap: u8;
+pub extern var trace_pmap: bool;

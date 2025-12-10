@@ -189,75 +189,75 @@ a list of unowned cities, choose one at random, and mark
 it as the computers.
 */
 
-void c_give(void) {
-  int unowned[NUM_CITY];
-  count_t i, count;
-
-  count = 0; /* nothing in list yet */
-  for (i = 0; i < NUM_CITY; i++) {
-    if (city[i].owner == UNOWNED) {
-      unowned[count] = i; /* remember this city */
-      count += 1;
-    }
-  }
-  if (count == 0) {
-    error("There are no unowned cities.");
-    ksend("There are no unowned cities.");
-    return;
-  }
-  i = irand(count);
-  i = unowned[i]; /* get city index */
-  city[i].owner = COMP;
-  city[i].prod = NOPIECE;
-  city[i].work = 0;
-  scan(comp_map, city[i].loc);
-}
+// void c_give(void) {
+//   int unowned[NUM_CITY];
+//   count_t i, count;
+//
+//   count = 0; /* nothing in list yet */
+//   for (i = 0; i < NUM_CITY; i++) {
+//     if (city[i].owner == UNOWNED) {
+//       unowned[count] = i; /* remember this city */
+//       count += 1;
+//     }
+//   }
+//   if (count == 0) {
+//     error("There are no unowned cities.");
+//     ksend("There are no unowned cities.");
+//     return;
+//   }
+//   i = irand(count);
+//   i = unowned[i]; /* get city index */
+//   city[i].owner = COMP;
+//   city[i].prod = NOPIECE;
+//   city[i].work = 0;
+//   scan(comp_map, city[i].loc);
+// }
 
 /*
 Debugging commands should be implemented here.
 The order cannot be any legal command.
 */
 
-void c_debug(char order) {
-  char e;
-
-  switch (order) {
-    case '#':
-      c_examine();
-      break;
-    case '%':
-      c_movie();
-      break;
-
-    case '@': /* change trace state */
-      e = get_chx();
-      if (e == '+')
-        trace_pmap = true;
-      else if (e == '-')
-        trace_pmap = false;
-      else
-        huh();
-      break;
-
-    case '$': /* change print_debug state */
-      e = get_chx();
-      if (e == '+')
-        print_debug = true;
-      else if (e == '-')
-        print_debug = false;
-      else
-        huh();
-      break;
-
-    case '&': /* change print_vmap state */
-      print_vmap = get_chx();
-      break;
-
-    default:
-      huh();
-      break;
-  }
-}
+// void c_debug(char order) {
+//   char e;
+//
+//   switch (order) {
+//     case '#':
+//       c_examine();
+//       break;
+//     case '%':
+//       c_movie();
+//       break;
+//
+//     case '@': /* change trace state */
+//       e = get_chx();
+//       if (e == '+')
+//         trace_pmap = true;
+//       else if (e == '-')
+//         trace_pmap = false;
+//       else
+//         huh();
+//       break;
+//
+//     case '$': /* change print_debug state */
+//       e = get_chx();
+//       if (e == '+')
+//         print_debug = true;
+//       else if (e == '-')
+//         print_debug = false;
+//       else
+//         huh();
+//       break;
+//
+//     case '&': /* change print_vmap state */
+//       print_vmap = get_chx();
+//       break;
+//
+//     default:
+//       huh();
+//       break;
+//   }
+// }
 
 /*
 The quit command.  Make sure the user really wants to quit.
