@@ -11,6 +11,7 @@ pub const NUM_SECTORS = SECTOR_ROWS * SECTOR_COLS;
 pub const ROWS_PER_SECTOR = @import("std").zig.c_translation.MacroArithmetic.div((MAP_HEIGHT + SECTOR_ROWS) - @as(c_int, 1), SECTOR_ROWS);
 pub const COLS_PER_SECTOR = @import("std").zig.c_translation.MacroArithmetic.div((MAP_WIDTH + SECTOR_COLS) - @as(c_int, 1), SECTOR_COLS);
 pub const STRSIZE = 400;
+pub const NUM_OBJECTS = 9;
 
 pub const Ownership = enum(c_int) {
     Unowned = 0,
@@ -49,3 +50,5 @@ pub extern var print_debug: bool;
 pub extern var print_vmap: u8;
 pub extern var trace_pmap: bool;
 pub extern var city: [NUM_CITY]types.city_info_t;
+
+pub extern var user_obj: [NUM_OBJECTS][*c]types.piece_info_t;

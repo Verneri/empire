@@ -36,7 +36,22 @@ pub const struct_piece_info = extern struct {
     range: c_short = @import("std").mem.zeroes(c_short),
 };
 pub const link_t = extern struct {
-    next: [*c]struct_piece_info = @import("std").mem.zeroes([*c]struct_piece_info),
-    prev: [*c]struct_piece_info = @import("std").mem.zeroes([*c]struct_piece_info),
+    next: ?*struct_piece_info = null,
+    prev: ?*struct_piece_info = null,
 };
 pub const piece_info_t = struct_piece_info;
+pub const struct_piece_attr = extern struct {
+    sname: u8 = @import("std").mem.zeroes(u8),
+    name: [20]u8 = @import("std").mem.zeroes([20]u8),
+    nickname: [20]u8 = @import("std").mem.zeroes([20]u8),
+    article: [20]u8 = @import("std").mem.zeroes([20]u8),
+    plural: [20]u8 = @import("std").mem.zeroes([20]u8),
+    terrain: [4]u8 = @import("std").mem.zeroes([4]u8),
+    build_time: uchar = @import("std").mem.zeroes(uchar),
+    strength: uchar = @import("std").mem.zeroes(uchar),
+    max_hits: uchar = @import("std").mem.zeroes(uchar),
+    speed: uchar = @import("std").mem.zeroes(uchar),
+    capacity: uchar = @import("std").mem.zeroes(uchar),
+    range: c_long = @import("std").mem.zeroes(c_long),
+};
+pub const piece_attr_t = struct_piece_attr;

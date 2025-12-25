@@ -1,2 +1,5 @@
 const types = @import("types.zig");
 pub extern fn scan(vmap: [*c]types.view_map_t, loc: c_long) void;
+pub extern fn set_prod(cityp: [*c]types.city_info_t) void;
+pub extern fn produce(cityp: [*c]types.city_info_t) void;
+pub extern fn move_sat(obj: [*c]types.piece_info_t) void;

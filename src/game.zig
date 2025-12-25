@@ -2,6 +2,7 @@ extern fn restore_game() c_int;
 extern fn init_game() void;
 extern fn save_game() void;
 pub extern fn replay_movie() void;
+pub extern fn save_movie_screen() void;
 
 pub const LoadError = error{NotLoaded};
 

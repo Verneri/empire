@@ -20,77 +20,77 @@ void move_army_to_city(piece_info_t *obj, loc_t city_loc);
 bool awake(piece_info_t *obj);
 extern int get_piece_name(void);
 
-void user_move(void) {
-  void piece_move(piece_info_t *obj);
-
-  int i, j, sec, sec_start;
-  piece_info_t *obj, *next_obj;
-  int prod;
-
-  /* First we loop through objects to update the user's view
-     of the world and perform any other necessary processing.
-     We would like to have the world view up to date before
-     asking the user any questions.  This means that we should
-     also scan through all cities before possibly asking the
-     user what to produce in each city. */
-
-  for (i = 0; i < NUM_OBJECTS; i++)
-    for (obj = user_obj[i]; obj != NULL; obj = obj->piece_link.next) {
-      obj->moved = 0;           /* nothing moved yet */
-      scan(user_map, obj->loc); /* refresh user's view of world */
-    }
-
-  /* produce new hardware */
-  for (i = 0; i < NUM_CITY; i++)
-    if (city[i].owner == USER) {
-      scan(user_map, city[i].loc);
-      prod = city[i].prod;
-
-      if (prod == NOPIECE) {  /* need production? */
-        set_prod(&(city[i])); /* ask user what to produce */
-      } else if (city[i].work++ >= (long)piece_attr[prod].build_time) {
-        /* kermyt begin */
-        ksend("%s has been completed at city %d.\n", piece_attr[prod].article,
-              loc_disp(city[i].loc));
-        /* kermyt end */
-        comment("%s has been completed at city %d.\n", piece_attr[prod].article,
-                loc_disp(city[i].loc));
-
-        produce(&city[i]);
-        /* produce should set object.moved to 0 */
-      }
-    }
-
-  /* move all satellites */
-  for (obj = user_obj[SATELLITE]; obj != NULL; obj = next_obj) {
-    next_obj = obj->piece_link.next;
-    move_sat(obj);
-  }
-
-  sec_start = cur_sector(); /* get currently displayed sector */
-  if (sec_start == -1) sec_start = 0;
-
-  /* loop through sectors, moving every piece in the sector */
-  for (i = sec_start; i < sec_start + NUM_SECTORS; i++) {
-    sec = i % NUM_SECTORS;
-    sector_change(); /* allow screen to be redrawn */
-
-    for (j = 0; j < NUM_OBJECTS; j++) /* loop through obj lists */
-      for (obj = user_obj[move_order[j]]; obj != NULL;
-           obj = next_obj) { /* loop through objs in list */
-        next_obj = obj->piece_link.next;
-
-        if (!obj->moved)                   /* object not moved yet? */
-          if (loc_sector(obj->loc) == sec) /* object in sector? */
-            piece_move(obj);               /* yup; move the object */
-      }
-    if (cur_sector() == sec) { /* is sector displayed? */
-      print_sector_u(sec);     /* make screen up-to-date */
-      redisplay();             /* show it to the user */
-    }
-  }
-  if (save_movie) save_movie_screen();
-}
+// void user_move(void) {
+//   void piece_move(piece_info_t *obj);
+//
+//   int i, j, sec, sec_start;
+//   piece_info_t *obj, *next_obj;
+//   int prod;
+//
+//   /* First we loop through objects to update the user's view
+//      of the world and perform any other necessary processing.
+//      We would like to have the world view up to date before
+//      asking the user any questions.  This means that we should
+//      also scan through all cities before possibly asking the
+//      user what to produce in each city. */
+//
+//   for (i = 0; i < NUM_OBJECTS; i++)
+//     for (obj = user_obj[i]; obj != NULL; obj = obj->piece_link.next) {
+//       obj->moved = 0;           /* nothing moved yet */
+//       scan(user_map, obj->loc); /* refresh user's view of world */
+//     }
+//
+//   /* produce new hardware */
+//   for (i = 0; i < NUM_CITY; i++)
+//     if (city[i].owner == USER) {
+//       scan(user_map, city[i].loc);
+//       prod = city[i].prod;
+//
+//       if (prod == NOPIECE) {  /* need production? */
+//         set_prod(&(city[i])); /* ask user what to produce */
+//       } else if (city[i].work++ >= (long)piece_attr[prod].build_time) {
+//         /* kermyt begin */
+//         ksend("%s has been completed at city %d.\n", piece_attr[prod].article,
+//               loc_disp(city[i].loc));
+//         /* kermyt end */
+//         comment("%s has been completed at city %d.\n", piece_attr[prod].article,
+//                 loc_disp(city[i].loc));
+//
+//         produce(&city[i]);
+//         /* produce should set object.moved to 0 */
+//       }
+//     }
+//
+//   /* move all satellites */
+//   for (obj = user_obj[SATELLITE]; obj != NULL; obj = next_obj) {
+//     next_obj = obj->piece_link.next;
+//     move_sat(obj);
+//   }
+//
+//   sec_start = cur_sector(); /* get currently displayed sector */
+//   if (sec_start == -1) sec_start = 0;
+//
+//   /* loop through sectors, moving every piece in the sector */
+//   for (i = sec_start; i < sec_start + NUM_SECTORS; i++) {
+//     sec = i % NUM_SECTORS;
+//     sector_change(); /* allow screen to be redrawn */
+//
+//     for (j = 0; j < NUM_OBJECTS; j++) /* loop through obj lists */
+//       for (obj = user_obj[move_order[j]]; obj != NULL;
+//            obj = next_obj) { /* loop through objs in list */
+//         next_obj = obj->piece_link.next;
+//
+//         if (!obj->moved)                   /* object not moved yet? */
+//           if (loc_sector(obj->loc) == sec) /* object in sector? */
+//             piece_move(obj);               /* yup; move the object */
+//       }
+//     if (cur_sector() == sec) { /* is sector displayed? */
+//       print_sector_u(sec);     /* make screen up-to-date */
+//       redisplay();             /* show it to the user */
+//     }
+//   }
+//   if (save_movie) save_movie_screen();
+// }
 
 /*
 Move a piece.  We loop until all the moves of a piece are made.  Within
