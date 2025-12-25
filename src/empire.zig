@@ -48,7 +48,7 @@ fn do_command(orders: u8) void {
             globals.automove = true;
             terminal.error_msg("Now in Auto-Mode");
             user.move();
-            computer.move(@as(c_int, 1));
+            computer.move(1);
             game.save();
         },
         'C' => {
