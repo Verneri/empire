@@ -1061,34 +1061,34 @@ completely awoken here if their function is a destination.  But we
 will return true if we want the user to have control.
 */
 
-bool awake(piece_info_t *obj) {
-  int i;
-  char c;
-  long t;
-
-  if (obj->type == ARMY && vmap_at_sea(user_map, obj->loc)) {
-    obj->moved = piece_attr[ARMY].range;
-    return (false);
-  }
-  if (obj->func == NOFUNC) return (true); /* object is awake */
-
-  if (obj->type == FIGHTER /* wake fighters */
-      && obj->func != LAND /* that aren't returning to base */
-      && obj->func < 0     /* and which don't have a path */
-      && obj->range <= find_nearest_city(obj->loc, USER, &t) + 2) {
-    obj->func = NOFUNC; /* wake piece */
-    return (true);
-  }
-  for (i = 0; i < 8; i++) { /* for each surrounding cell */
-    c = user_map[obj->loc + dir_offset[i]].contents;
-
-    if (islower(c) || c == MAP_CITY || c == 'X') {
-      if (obj->func < 0) obj->func = NOFUNC; /* awaken */
-      return (true);
-    }
-  }
-  return (false);
-}
+// bool awake(piece_info_t *obj) {
+//   int i;
+//   char c;
+//   long t;
+//
+//   if (obj->type == ARMY && vmap_at_sea(user_map, obj->loc)) {
+//     obj->moved = piece_attr[ARMY].range;
+//     return (false);
+//   }
+//   if (obj->func == NOFUNC) return (true); /* object is awake */
+//
+//   if (obj->type == FIGHTER /* wake fighters */
+//       && obj->func != LAND /* that aren't returning to base */
+//       && obj->func < 0     /* and which don't have a path */
+//       && obj->range <=  find_nearest_city(obj->loc, USER, &t) + 2) {
+//     obj->func = NOFUNC; /* wake piece */
+//     return (true);
+//   }
+//   for (i = 0; i < 8; i++) { /* for each surrounding cell */
+//     c = user_map[obj->loc + dir_offset[i]].contents;
+//
+//     if (islower(c) || c == MAP_CITY || c == 'X') {
+//       if (obj->func < 0) obj->func = NOFUNC; /* awaken */
+//       return (true);
+//     }
+//   }
+//   return (false);
+// }
 
 /*
 Question the user about a fatal move.  If the user responds 'y',

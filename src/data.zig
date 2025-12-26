@@ -11,3 +11,10 @@ pub const piece_attr: [*c]types.piece_attr_t = @extern([*c]types.piece_attr_t, .
 pub const move_order: [*c]c_int = @extern([*c]c_int, .{
     .name = "move_order",
 });
+pub const dir_offset: [*c]c_int = @extern([*c]c_int, .{
+    .name = "dir_offset",
+});
+
+pub const MAP_LAND = '+';
+pub const MAP_SEA = '.';
+pub const MAP_CITY = '*';

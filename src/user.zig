@@ -1,3 +1,4 @@
+const std = @import("std");
 const globals = @import("globals.zig");
 const object = @import("object.zig");
 const types = @import("types.zig");
@@ -6,6 +7,7 @@ const terminal = @import("terminal.zig");
 const display = @import("display.zig");
 const util = @import("util.zig");
 const game = @import("game.zig");
+const map = @import("map.zig");
 
 extern fn user_move() void;
 
@@ -159,7 +161,43 @@ fn piece_move(obj: *types.piece_info_t) void {
     }
 }
 
-extern fn awake(arg_obj: *types.piece_info_t) bool;
+export fn awake(obj: *types.piece_info_t) bool {
+    if (type_is(obj, .Army) and
+        map.vmap_at_sea(&globals.user_map, obj.loc))
+    {
+        obj.*.moved = @intCast(piece_attr(.Army).range);
+        return false;
+    }
+
+    if (function(obj) == .NoFunc) return true;
+
+    var city_loc: c_long = undefined;
+
+    if (piece_type(obj) == .Fighter and
+        function(obj) != .Land and
+        !has_destination(obj) and
+        obj.range <= object.find_nearest_city(obj.loc, @intFromEnum(globals.Ownership.User), &city_loc) + 2)
+    {
+        obj.*.func = @intFromEnum(globals.Function.NoFunc);
+        return true;
+    }
+
+    for (0..8) |i| {
+        const neighbor_loc: usize = @intCast(obj.loc + data.dir_offset[i]);
+        const c = globals.user_map[neighbor_loc].contents;
+        if (std.ascii.isLower(c) or
+            c == data.MAP_CITY or
+            c == 'X')
+        {
+            if (!has_destination(obj)) {
+                obj.*.func = @intFromEnum(globals.Function.NoFunc);
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
 extern fn ask_user(obj: *types.piece_info_t) void;
 extern fn move_random(obj: *types.piece_info_t) void;
 extern fn move_fill(obj: *types.piece_info_t) void;
@@ -172,3 +210,23 @@ extern fn move_repair(obj: *types.piece_info_t) void;
 extern fn move_transport(obj: *types.piece_info_t) void;
 extern fn move_dir(obj: *types.piece_info_t) void;
 extern fn move_path(obj: *types.piece_info_t) void;
+
+inline fn type_is(obj: *const types.piece_info_t, ptype: globals.PieceType) bool {
+    return obj.type == @intFromEnum(ptype);
+}
+
+inline fn piece_type(obj: *const types.piece_info_t) globals.PieceType {
+    return @enumFromInt(obj.type);
+}
+
+inline fn piece_attr(ptype: globals.PieceType) types.piece_attr_t {
+    return data.piece_attr[@intFromEnum(ptype)];
+}
+
+inline fn function(obj: *const types.piece_info_t) globals.Function {
+    return @enumFromInt(obj.func);
+}
+
+inline fn has_destination(obj: *const types.piece_info_t) bool {
+    return obj.func > 0;
+}
