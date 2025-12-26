@@ -10,6 +10,7 @@ pub extern fn getyn(message: [*c]const u8) bool;
 pub extern fn get_range(message: [*c]const u8, low: c_int, high: c_int) c_int;
 pub extern fn get_str(buf: [*c]u8, sizep: c_int) void;
 pub extern fn loc_disp(loc: c_int) c_int;
+pub extern fn topini() void;
 
 pub fn error_msg(fmt: [*c]const u8) void {
     @"error"(fmt);

@@ -99,122 +99,122 @@ Then we attempt to handle any preprogrammed function for the piece.  If
 the piece has not moved after this, we ask the user what to do.
 */
 
-void piece_move(piece_info_t *obj) {
-  void move_random(piece_info_t *obj), move_fill(piece_info_t *obj), move_land(piece_info_t *obj), move_explore(piece_info_t *obj);
-  void move_path(piece_info_t *obj), move_dir(piece_info_t *obj), move_armyload(piece_info_t *obj), ask_user(piece_info_t *obj);
-  void move_armyattack(piece_info_t *obj), move_ttload(piece_info_t *obj), move_repair(piece_info_t *obj);
-  void move_transport(piece_info_t *obj);
-
-  bool changed_loc;
-  int speed, max_hits;
-  int saved_moves;
-  bool need_input;
-  loc_t saved_loc;
-  city_info_t *cityp;
-
-  /* set func for piece if on city */
-  cityp = find_city(obj->loc);
-  if (cityp != NULL)
-    if (cityp->func[obj->type] != NOFUNC) obj->func = cityp->func[obj->type];
-
-  changed_loc = false; /* not changed yet */
-  speed = piece_attr[obj->type].speed;
-  max_hits = piece_attr[obj->type].max_hits;
-  need_input = false; /* don't require user input yet */
-
-  while (obj->moved < obj_moves(obj)) {
-    saved_moves = obj->moved; /* save moves made */
-    saved_loc = obj->loc;     /* remember starting location */
-
-    if (awake(obj) || need_input) { /* need user input? */
-      ask_user(obj);
-      topini();                /* clear info lines */
-      display_loc_u(obj->loc); /* let user see result */
-      (void)redisplay();
-      need_input = false; /* we got it */
-    }
-
-    if (obj->moved == saved_moves) /* user set function? */
-      switch (obj->func) {         /* handle preprogrammed function */
-        case NOFUNC:
-          break;
-        case RANDOM:
-          move_random(obj);
-          break;
-        case SENTRY:
-          obj->moved = speed;
-          break;
-        case FILL:
-          move_fill(obj);
-          break;
-        case LAND:
-          move_land(obj);
-          break;
-        case EXPLORE:
-          move_explore(obj);
-          break;
-        case ARMYLOAD:
-          move_armyload(obj);
-          break;
-        case ARMYATTACK:
-          move_armyattack(obj);
-          break;
-        case TTLOAD:
-          move_ttload(obj);
-          break;
-        case REPAIR:
-          move_repair(obj);
-          break;
-        case WFTRANSPORT:
-          move_transport(obj);
-          break;
-
-        case MOVE_N:
-        case MOVE_NE:
-        case MOVE_E:
-        case MOVE_SE:
-        case MOVE_S:
-        case MOVE_SW:
-        case MOVE_W:
-        case MOVE_NW:
-          move_dir(obj);
-          break;
-
-        default:
-          move_path(obj);
-          break;
-      }
-
-    if (obj->moved == saved_moves) need_input = true;
-
-    /* handle fighters specially.  If in a city or carrier, turn
-       is over and reset range to max.  Otherwise, if
-       range = 0, fighter crashes and burns and turn is over. */
-
-    if (obj->type == FIGHTER && obj->hits > 0) {
-      if ((user_map[obj->loc].contents == 'O' ||
-           user_map[obj->loc].contents == 'C') &&
-          obj->moved > 0) {
-        obj->range = piece_attr[FIGHTER].range;
-        obj->moved = speed;
-        obj->func = NOFUNC;
-        comment("Landing confirmed.");
-      } else if (obj->range == 0) {
-        comment("Fighter at %d crashed and burned.", loc_disp(obj->loc));
-        kill_obj(obj, obj->loc);
-      }
-    }
-
-    if (saved_loc != obj->loc) changed_loc = true;
-  }
-  /* if a boat is in port, damaged, and never moved, fix some damage */
-  if (obj->hits > 0   /* still alive? */
-      && !changed_loc /* object never changed location? */
-      && obj->type != ARMY && obj->type != FIGHTER /* it is a boat? */
-      && obj->hits < max_hits                      /* it is damaged? */
-      && user_map[obj->loc].contents == 'O')       /* it is in port? */
-    obj->hits++;                                   /* fix some damage */
-}
+// void piece_move(piece_info_t *obj) {
+//   void move_random(piece_info_t *obj), move_fill(piece_info_t *obj), move_land(piece_info_t *obj), move_explore(piece_info_t *obj);
+//   void move_path(piece_info_t *obj), move_dir(piece_info_t *obj), move_armyload(piece_info_t *obj), ask_user(piece_info_t *obj);
+//   void move_armyattack(piece_info_t *obj), move_ttload(piece_info_t *obj), move_repair(piece_info_t *obj);
+//   void move_transport(piece_info_t *obj);
+//
+//   bool changed_loc;
+//   int speed, max_hits;
+//   int saved_moves;
+//   bool need_input;
+//   loc_t saved_loc;
+//   city_info_t *cityp;
+//
+//   /* set func for piece if on city */
+//   cityp = find_city(obj->loc);
+//   if (cityp != NULL)
+//     if (cityp->func[obj->type] != NOFUNC) obj->func = cityp->func[obj->type];
+//
+//   changed_loc = false; /* not changed yet */
+//   speed = piece_attr[obj->type].speed;
+//   max_hits = piece_attr[obj->type].max_hits;
+//   need_input = false; /* don't require user input yet */
+//
+//   while (obj->moved < obj_moves(obj)) {
+//     saved_moves = obj->moved; /* save moves made */
+//     saved_loc = obj->loc;     /* remember starting location */
+//
+//     if (awake(obj) || need_input) { /* need user input? */
+//       ask_user(obj);
+//       topini();                /* clear info lines */
+//       display_loc_u(obj->loc); /* let user see result */
+//       (void)redisplay();
+//       need_input = false; /* we got it */
+//     }
+//
+//     if (obj->moved == saved_moves) /* user set function? */
+//       switch (obj->func) {         /* handle preprogrammed function */
+//         case NOFUNC:
+//           break;
+//         case RANDOM:
+//           move_random(obj);
+//           break;
+//         case SENTRY:
+//           obj->moved = speed;
+//           break;
+//         case FILL:
+//           move_fill(obj);
+//           break;
+//         case LAND:
+//           move_land(obj);
+//           break;
+//         case EXPLORE:
+//           move_explore(obj);
+//           break;
+//         case ARMYLOAD:
+//           move_armyload(obj);
+//           break;
+//         case ARMYATTACK:
+//           move_armyattack(obj);
+//           break;
+//         case TTLOAD:
+//           move_ttload(obj);
+//           break;
+//         case REPAIR:
+//           move_repair(obj);
+//           break;
+//         case WFTRANSPORT:
+//           move_transport(obj);
+//           break;
+//
+//         case MOVE_N:
+//         case MOVE_NE:
+//         case MOVE_E:
+//         case MOVE_SE:
+//         case MOVE_S:
+//         case MOVE_SW:
+//         case MOVE_W:
+//         case MOVE_NW:
+//           move_dir(obj);
+//           break;
+//
+//         default:
+//           move_path(obj);
+//           break;
+//       }
+//
+//     if (obj->moved == saved_moves) need_input = true;
+//
+//     /* handle fighters specially.  If in a city or carrier, turn
+//        is over and reset range to max.  Otherwise, if
+//        range = 0, fighter crashes and burns and turn is over. */
+//
+//     if (obj->type == FIGHTER && obj->hits > 0) {
+//       if ((user_map[obj->loc].contents == 'O' ||
+//            user_map[obj->loc].contents == 'C') &&
+//           obj->moved > 0) {
+//         obj->range = piece_attr[FIGHTER].range;
+//         obj->moved = speed;
+//         obj->func = NOFUNC;
+//         comment("Landing confirmed.");
+//       } else if (obj->range == 0) {
+//         comment("Fighter at %d crashed and burned.", loc_disp(obj->loc));
+//         kill_obj(obj, obj->loc);
+//       }
+//     }
+//
+//     if (saved_loc != obj->loc) changed_loc = true;
+//   }
+//   /* if a boat is in port, damaged, and never moved, fix some damage */
+//   if (obj->hits > 0   /* still alive? */
+//       && !changed_loc /* object never changed location? */
+//       && obj->type != ARMY && obj->type != FIGHTER /* it is a boat? */
+//       && obj->hits < max_hits                      /* it is damaged? */
+//       && user_map[obj->loc].contents == 'O')       /* it is in port? */
+//     obj->hits++;                                   /* fix some damage */
+// }
 
 /*
 Move a piece at random.  We create a list of empty squares to which

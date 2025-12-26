@@ -10,6 +10,7 @@ pub extern fn print_zoom(vmap: [*c]types.view_map_t) void;
 pub extern fn redraw() void;
 pub extern fn print_sector(whose: c_int, vmap: [*c]types.view_map_t, sector: c_int) void;
 pub extern fn sector_change() void;
+pub extern fn display_loc(whose: c_int, vmap: [*c]types.view_map_t, loc: c_long) void;
 
 pub inline fn print_sector_u(sector: c_int) void {
     print_sector(@intFromEnum(globals.Ownership.User), &globals.user_map, sector);
@@ -17,4 +18,11 @@ pub inline fn print_sector_u(sector: c_int) void {
 
 pub inline fn print_sector_c(sector: c_int) void {
     print_sector(@intFromEnum(globals.Ownership.Comp), &globals.comp_map, sector);
+}
+pub inline fn display_loc_u(loc: c_long) void {
+    display_loc(@intFromEnum(globals.Ownership.User), &globals.user_map, loc);
+}
+
+pub inline fn display_loc_c(loc: c_long) void {
+    display_loc(@intFromEnum(globals.Ownership.Comp), &globals.comp_map, loc);
 }

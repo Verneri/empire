@@ -33,6 +33,29 @@ pub const PieceType = enum(c_int) {
     NoPiece = 255,
 };
 
+pub const Function = enum(c_long) {
+    NoFunc = -1, //       /* no programmed function */
+    Random = -2, //       /* move randomly */
+    Sentry = -3, //       /* sleep */
+    Fill = -4, //         /* fill transport */
+    Land = -5, //         /* land fighter at city */
+    Explore = -6, //      /* piece explores nearby */
+    ArmyLoad = -7, //     /* army moves toward and boards a transport */
+    ArmyAttack = -8, //   /* army looks for city to attack */
+    TTLoad = -9, //       /* transport moves toward loading armies */
+    Repair = -10, //      /* ship moves toward port */
+    WFTransport = -11, // /* army boards a transport */
+    Move_N = -12, //      /* move north */
+    Move_NE = -13, //     /* move northeast */
+    Move_E = -14, //      /* move east */
+    Move_SE = -15, //     /* move southeast */
+    Move_S = -16, //      /* move south */
+    Move_SW = -17, //     /* move southwest */
+    Move_W = -18, //      /* move west */
+    Move_NW = -19, //     /* move northwest
+    _, // move to loc
+};
+
 pub extern var SMOOTH: c_int;
 pub extern var WATER_RATIO: c_int;
 pub extern var MIN_CITY_DIST: c_int;
