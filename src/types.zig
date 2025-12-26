@@ -55,3 +55,13 @@ pub const struct_piece_attr = extern struct {
     range: c_long = @import("std").mem.zeroes(c_long),
 };
 pub const piece_attr_t = struct_piece_attr;
+pub const path_map_t = extern struct {
+    cost: c_int = @import("std").mem.zeroes(c_int),
+    inc_cost: c_int = @import("std").mem.zeroes(c_int),
+    terrain: u8 = @import("std").mem.zeroes(u8),
+};
+pub const move_info_t = extern struct {
+    city_owner: u8 = @import("std").mem.zeroes(u8),
+    objectives: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
+    weights: [11]c_int = @import("std").mem.zeroes([11]c_int),
+};

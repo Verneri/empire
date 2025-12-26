@@ -86,3 +86,6 @@ pub extern var trace_pmap: bool;
 pub extern var city: [NUM_CITY]types.city_info_t;
 
 pub extern var user_obj: [NUM_OBJECTS][*c]types.piece_info_t;
+pub extern var user_army: types.move_info_t;
+pub extern var user_fighter: types.move_info_t;
+pub extern var user_ship: types.move_info_t;

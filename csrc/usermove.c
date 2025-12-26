@@ -222,24 +222,24 @@ the piece can move.  If there are none, we do nothing, otherwise we
 move the piece to a random adjacent square.
 */
 
-void move_random(piece_info_t *obj) {
-  loc_t loc_list[8];
-  int i, nloc;
-  loc_t loc;
-
-  nloc = 0;
-
-  for (i = 0; i < 8; i++) {
-    loc = obj->loc + dir_offset[i];
-    if (good_loc(obj, loc)) {
-      loc_list[nloc] = loc; /* remember this location */
-      nloc++;               /* count locations we can move to */
-    }
-  }
-  if (nloc == 0) return;      /* no legal move */
-  i = irand((long)nloc - 1);  /* choose random direction */
-  move_obj(obj, loc_list[i]); /* move the piece */
-}
+// void move_random(piece_info_t *obj) {
+//   loc_t loc_list[8];
+//   int i, nloc;
+//   loc_t loc;
+//
+//   nloc = 0;
+//
+//   for (i = 0; i < 8; i++) {
+//     loc = obj->loc + dir_offset[i];
+//     if (good_loc(obj, loc)) {
+//       loc_list[nloc] = loc; /* remember this location */
+//       nloc++;               /* count locations we can move to */
+//     }
+//   }
+//   if (nloc == 0) return;      /* no legal move */
+//   i = irand((long)nloc - 1);  /* choose random direction */
+//   move_obj(obj, loc_list[i]); /* move the piece */
+// }
 
 /*
 Have a piece explore.  We look for the nearest unexplored territory
@@ -247,36 +247,36 @@ which the piece can reach and have to piece move toward the
 territory.
 */
 
-void move_explore(piece_info_t *obj) {
-  path_map_t path_map[MAP_SIZE];
-  loc_t loc;
-  const char *terrain;
-
-  switch (obj->type) {
-    case ARMY:
-      loc = vmap_find_lobj(path_map, user_map, obj->loc, &user_army);
-      terrain = "+";
-      break;
-    case FIGHTER:
-      loc = vmap_find_aobj(path_map, user_map, obj->loc, &user_fighter);
-      terrain = "+.O";
-      break;
-    default:
-      loc = vmap_find_wobj(path_map, user_map, obj->loc, &user_ship);
-      terrain = ".O";
-      break;
-  }
-
-  if (loc == obj->loc) return; /* nothing to explore */
-
-  if (user_map[loc].contents == ' ' && path_map[loc].cost == 2)
-    vmap_mark_adjacent(path_map, obj->loc);
-  else
-    vmap_mark_path(path_map, user_map, loc);
-
-  loc = vmap_find_dir(path_map, user_map, obj->loc, terrain, " ");
-  if (loc != obj->loc) move_obj(obj, loc);
-}
+// void move_explore(piece_info_t *obj) {
+//   path_map_t path_map[MAP_SIZE];
+//   loc_t loc;
+//   const char *terrain;
+//
+//   switch (obj->type) {
+//     case ARMY:
+//       loc = vmap_find_lobj(path_map, user_map, obj->loc, &user_army);
+//       terrain = "+";
+//       break;
+//     case FIGHTER:
+//       loc = vmap_find_aobj(path_map, user_map, obj->loc, &user_fighter);
+//       terrain = "+.O";
+//       break;
+//     default:
+//       loc = vmap_find_wobj(path_map, user_map, obj->loc, &user_ship);
+//       terrain = ".O";
+//       break;
+//   }
+//
+//   if (loc == obj->loc) return; /* nothing to explore */
+//
+//   if (user_map[loc].contents == ' ' && path_map[loc].cost == 2)
+//     vmap_mark_adjacent(path_map, obj->loc);
+//   else
+//     vmap_mark_path(path_map, user_map, loc);
+//
+//   loc = vmap_find_dir(path_map, user_map, obj->loc, terrain, " ");
+//   if (loc != obj->loc) move_obj(obj, loc);
+// }
 
 /*
 Move an army onto a transport when it arrives.  We scan around the
@@ -391,12 +391,12 @@ object is not full, we set the move count to its maximum value.
 Otherwise we awaken the object.
 */
 
-void move_fill(piece_info_t *obj) {
-  if (obj->count == obj_capacity(obj)) /* full? */
-    obj->func = NOFUNC;                /* awaken full boat */
-  else
-    obj->moved = piece_attr[obj->type].speed;
-}
+// void move_fill(piece_info_t *obj) {
+//   if (obj->count == obj_capacity(obj)) /* full? */
+//     obj->func = NOFUNC;                /* awaken full boat */
+//   else
+//     obj->moved = piece_attr[obj->type].speed;
+// }
 
 /*
 Here we have a piece that wants to land at the nearest carrier or
@@ -405,30 +405,30 @@ for the closest one.  We then move toward that item's location.
 The nearest landing field must be within the object's range.
 */
 
-void move_land(piece_info_t *obj) {
-  long best_dist;
-  loc_t best_loc;
-  long new_dist;
-  piece_info_t *p;
-
-  best_dist = find_nearest_city(obj->loc, USER, &best_loc);
-
-  for (p = user_obj[CARRIER]; p != NULL; p = p->piece_link.next) {
-    new_dist = dist(obj->loc, p->loc);
-    if (new_dist < best_dist) {
-      best_dist = new_dist;
-      best_loc = p->loc;
-    }
-  }
-  if (best_dist == 0)
-    obj->moved += 1; /* fighter is on a city */
-
-  else if (best_dist <= obj->range)
-    move_to_dest(obj, best_loc);
-
-  else
-    obj->func = NOFUNC; /* can't reach city or carrier */
-}
+// void move_land(piece_info_t *obj) {
+//   long best_dist;
+//   loc_t best_loc;
+//   long new_dist;
+//   piece_info_t *p;
+//
+//   best_dist = find_nearest_city(obj->loc, USER, &best_loc);
+//
+//   for (p = user_obj[CARRIER]; p != NULL; p = p->piece_link.next) {
+//     new_dist = dist(obj->loc, p->loc);
+//     if (new_dist < best_dist) {
+//       best_dist = new_dist;
+//       best_loc = p->loc;
+//     }
+//   }
+//   if (best_dist == 0)
+//     obj->moved += 1; /* fighter is on a city */
+//
+//   else if (best_dist <= obj->range)
+//     move_to_dest(obj, best_loc);
+//
+//   else
+//     obj->func = NOFUNC; /* can't reach city or carrier */
+// }
 
 /*
 Move a piece in the specified direction if possible.

@@ -10,6 +10,7 @@ const util = @import("util.zig");
 const game = @import("game.zig");
 const map = @import("map.zig");
 const edit = @import("edit.zig");
+const math = @import("math.zig");
 
 extern fn user_move() void;
 
@@ -75,6 +76,10 @@ pub inline fn owned_by(obj: anytype, owner: globals.Ownership) bool {
     return obj.owner == @intFromEnum(owner);
 }
 
+// Move a piece.  We loop until all the moves of a piece are made.  Within
+// the loop, we first awaken the piece if it is adjacent to an enemy piece.
+// Then we attempt to handle any preprogrammed function for the piece.  If
+// the piece has not moved after this, we ask the user what to do.
 fn piece_move(obj: *types.piece_info_t) void {
     const city: ?*types.struct_city_info = object.find_city(obj.loc);
     if (city) |c| {
@@ -184,8 +189,8 @@ export fn awake(obj: *types.piece_info_t) bool {
         return true;
     }
 
-    for (0..8) |i| {
-        const neighbor_loc: usize = @intCast(obj.loc + data.dir_offset[i]);
+    for (data.dir_offset[0..8]) |dir_offset| {
+        const neighbor_loc: usize = @intCast(obj.loc + dir_offset);
         const c = globals.user_map[neighbor_loc].contents;
         if (std.ascii.isLower(c) or
             c == data.MAP_CITY or
@@ -318,10 +323,96 @@ fn ask_user(obj: *types.piece_info_t) void {
     }
 }
 
-extern fn move_random(obj: *types.piece_info_t) void;
-extern fn move_fill(obj: *types.piece_info_t) void;
-extern fn move_land(obj: *types.piece_info_t) void;
-extern fn move_explore(obj: *types.piece_info_t) void;
+// Move a piece at random.  We create a list of empty squares to which
+// the piece can move.  If there are none, we do nothing, otherwise we
+// move the piece to a random adjacent square.
+fn move_random(obj: *types.piece_info_t) void {
+    var nloc: usize = 0;
+    var loc_list: [8]c_long = [_]c_long{0} ** 8;
+    for (data.dir_offset[0..8]) |offset| {
+        const loc: c_long = obj.loc + offset;
+        if (object.good_loc(obj, loc)) {
+            loc_list[nloc] = loc;
+            nloc += 1;
+        }
+        if (nloc == 0) return;
+        const i: usize = @intCast(math.irand(@intCast(nloc - 1)));
+        object.move_obj(obj, loc_list[i]);
+    }
+}
+
+// Here we have a transport or carrier waiting to be filled.  If the
+// object is not full, we set the move count to its maximum value.
+// Otherwise we awaken the object.
+fn move_fill(obj: *types.piece_info_t) void {
+    if (obj.count == object.capacity(obj)) {
+        obj.*.func = @intFromEnum(globals.Function.NoFunc);
+    } else {
+        obj.*.moved = piece_attr(piece_type(obj)).speed;
+    }
+}
+
+// Here we have a piece that wants to land at the nearest carrier or
+// owned city.  We scan through the lists of cities and carriers looking
+// for the closest one.  We then move toward that item's location.
+// The nearest landing field must be within the object's range.
+fn move_land(obj: *types.piece_info_t) void {
+    var best_loc: c_long = 0;
+    var best_dist = object.find_nearest_city(obj.loc, @intFromEnum(globals.Ownership.User), &best_loc);
+    var p: ?*piece_info_t = globals.user_obj[@intFromEnum(globals.PieceType.Carrier)];
+    while (p != null) : (p = p.?.piece_link.next) {
+        const carrier = p.?;
+        const new_dist = math.dist(obj.loc, carrier.loc);
+        if (new_dist < best_dist) {
+            best_dist = new_dist;
+            best_loc = carrier.loc;
+        }
+    }
+
+    if (best_dist == 0) {
+        obj.*.moved += 1;
+    } else if (best_dist <= obj.range) {
+        move_to_dest(obj, best_loc);
+    } else {
+        obj.*.func = @intFromEnum(globals.Function.NoFunc);
+    }
+}
+// Have a piece explore.  We look for the nearest unexplored territory
+// which the piece can reach and have to piece move toward the
+// territory.
+fn move_explore(obj: *types.piece_info_t) void {
+    var path_map: [globals.MAP_SIZE]types.path_map_t = undefined;
+    const loc_terrain = switch (piece_type(obj)) {
+        .Army => .{
+            map.vmap_find_lobj(&path_map, &globals.user_map, obj.loc, &globals.user_army),
+            "+",
+        },
+        .Fighter => .{
+            map.vmap_find_aobj(&path_map, &globals.user_map, obj.loc, &globals.user_fighter),
+            "+.O",
+        },
+        else => .{
+            map.vmap_find_wobj(&path_map, &globals.user_map, obj.loc, &globals.user_ship),
+            ".O",
+        },
+    };
+    const loc = loc_terrain.@"0";
+    const terrain = loc_terrain.@"1";
+
+    if (loc == obj.loc) return;
+
+    const iloc: usize = @intCast(loc);
+
+    if (globals.user_map[iloc].contents == ' ' and path_map[iloc].cost == 2) {
+        map.vmap_mark_adjacent(&path_map, obj.loc);
+    } else {
+        map.vmap_mark_path(&path_map, &globals.user_map, loc);
+    }
+
+    const dest = map.vmap_find_dir(&path_map, &globals.user_map, obj.loc, terrain, " ");
+    if (dest != obj.loc) object.move_obj(obj, dest);
+}
+
 extern fn move_armyload(obj: *types.piece_info_t) void;
 extern fn move_armyattack(obj: *types.piece_info_t) void;
 extern fn move_ttload(obj: *types.piece_info_t) void;
@@ -347,6 +438,7 @@ extern fn user_help() void;
 extern fn user_wake(arg_obj: [*c]piece_info_t) void;
 extern fn user_cancel_auto() void;
 extern fn user_redraw() void;
+extern fn move_to_dest(arg_obj: [*c]piece_info_t, arg_dest: c_long) void;
 
 fn user_direction(obj: *types.piece_info_t, dir: globals.Direction) void {
     user_dir(obj, @intFromEnum(dir));
@@ -361,7 +453,7 @@ inline fn piece_type(obj: *const types.piece_info_t) globals.PieceType {
 }
 
 inline fn piece_attr(ptype: globals.PieceType) types.piece_attr_t {
-    return data.piece_attr[@intFromEnum(ptype)];
+    return data.piece_attr[@intCast(@intFromEnum(ptype))];
 }
 
 inline fn function(obj: *const types.piece_info_t) globals.Function {
