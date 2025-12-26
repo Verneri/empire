@@ -502,115 +502,115 @@ void move_to_dest(piece_info_t *obj, loc_t dest) {
 Ask the user to move her piece.
 */
 
-void ask_user(piece_info_t *obj) {
-  void user_skip(piece_info_t *obj), user_fill(piece_info_t *obj), user_dir(piece_info_t *obj, int dir), user_set_dir(piece_info_t *obj);
-  void user_wake(piece_info_t *obj), user_set_city_func(piece_info_t *obj), user_cancel_auto(void);
-  void user_redraw(void), user_random(piece_info_t *obj), user_land(piece_info_t *obj), user_sentry(piece_info_t *obj);
-  void user_help(void), reset_func(piece_info_t *obj), user_explore(piece_info_t *obj);
-  void user_build(piece_info_t *obj), user_transport(piece_info_t *obj);
-  void user_armyattack(piece_info_t *obj), user_repair(piece_info_t *obj);
-
-  char c;
-
-  for (;;) {
-    display_loc_u(obj->loc); /* display piece to move */
-    describe_obj(obj);       /* describe object to be moved */
-    display_score();         /* show current score */
-    display_loc_u(obj->loc); /* reposition cursor */
-
-    c = get_chx(); /* get command from user (no echo) */
-    switch (c) {
-      case 'Q':
-        user_dir(obj, NORTHWEST);
-        return;
-      case 'W':
-        user_dir(obj, NORTH);
-        return;
-      case 'E':
-        user_dir(obj, NORTHEAST);
-        return;
-      case 'D':
-        user_dir(obj, EAST);
-        return;
-      case 'C':
-        user_dir(obj, SOUTHEAST);
-        return;
-      case 'X':
-        user_dir(obj, SOUTH);
-        return;
-      case 'Z':
-        user_dir(obj, SOUTHWEST);
-        return;
-      case 'A':
-        user_dir(obj, WEST);
-        return;
-
-      case 'J':
-        edit(obj->loc);
-        reset_func(obj);
-        return;
-      case 'V':
-        user_set_city_func(obj);
-        reset_func(obj);
-        return;
-
-      case ' ':
-        user_skip(obj);
-        return;
-      case 'F':
-        user_fill(obj);
-        return;
-      case 'I':
-        user_set_dir(obj);
-        return;
-      case 'R':
-        user_random(obj);
-        return;
-      case 'S':
-        user_sentry(obj);
-        return;
-      case 'L':
-        user_land(obj);
-        return;
-      case 'G':
-        user_explore(obj);
-        return;
-      case 'T':
-        user_transport(obj);
-        return;
-      case 'U':
-        user_repair(obj);
-        return;
-      case 'Y':
-        user_armyattack(obj);
-        return;
-
-      case 'B':
-        user_build(obj);
-        break;
-      case 'H':
-        user_help();
-        break;
-      case 'K':
-        user_wake(obj);
-        break;
-      case 'O':
-        user_cancel_auto();
-        break;
-      case '\014':
-      case 'P':
-        user_redraw();
-        break;
-      case '?':
-        describe_obj(obj);
-        break;
-
-      default:
-        complain();
-    }
-  }
-}
-
+// void ask_user(piece_info_t *obj) {
+//   void user_skip(piece_info_t *obj), user_fill(piece_info_t *obj), user_dir(piece_info_t *obj, int dir), user_set_dir(piece_info_t *obj);
+//   void user_wake(piece_info_t *obj), user_set_city_func(piece_info_t *obj), user_cancel_auto(void);
+//   void user_redraw(void), user_random(piece_info_t *obj), user_land(piece_info_t *obj), user_sentry(piece_info_t *obj);
+//   void user_help(void), reset_func(piece_info_t *obj), user_explore(piece_info_t *obj);
+//   void user_build(piece_info_t *obj), user_transport(piece_info_t *obj);
+//   void user_armyattack(piece_info_t *obj), user_repair(piece_info_t *obj);
+//
+//   char c;
+//
+//   for (;;) {
+//     display_loc_u(obj->loc); /* display piece to move */
+//     describe_obj(obj);       /* describe object to be moved */
+//     display_score();         /* show current score */
+//     display_loc_u(obj->loc); /* reposition cursor */
+//
+//     c = get_chx(); /* get command from user (no echo) */
+//     switch (c) {
+//       case 'Q':
+//         user_dir(obj, NORTHWEST);
+//         return;
+//       case 'W':
+//         user_dir(obj, NORTH);
+//         return;
+//       case 'E':
+//         user_dir(obj, NORTHEAST);
+//         return;
+//       case 'D':
+//         user_dir(obj, EAST);
+//         return;
+//       case 'C':
+//         user_dir(obj, SOUTHEAST);
+//         return;
+//       case 'X':
+//         user_dir(obj, SOUTH);
+//         return;
+//       case 'Z':
+//         user_dir(obj, SOUTHWEST);
+//         return;
+//       case 'A':
+//         user_dir(obj, WEST);
+//         return;
+//
+//       case 'J':
+//         edit(obj->loc);
+//         reset_func(obj);
+//         return;
+//       case 'V':
+//         user_set_city_func(obj);
+//         reset_func(obj);
+//         return;
+//
+//       case ' ':
+//         user_skip(obj);
+//         return;
+//       case 'F':
+//         user_fill(obj);
+//         return;
+//       case 'I':
+//         user_set_dir(obj);
+//         return;
+//       case 'R':
+//         user_random(obj);
+//         return;
+//       case 'S':
+//         user_sentry(obj);
+//         return;
+//       case 'L':
+//         user_land(obj);
+//         return;
+//       case 'G':
+//         user_explore(obj);
+//         return;
+//       case 'T':
+//         user_transport(obj);
+//         return;
+//       case 'U':
+//         user_repair(obj);
+//         return;
+//       case 'Y':
+//         user_armyattack(obj);
+//         return;
+//
+//       case 'B':
+//         user_build(obj);
+//         break;
+//       case 'H':
+//         user_help();
+//         break;
+//       case 'K':
+//         user_wake(obj);
+//         break;
+//       case 'O':
+//         user_cancel_auto();
+//         break;
+//       case '\014':
+//       case 'P':
+//         user_redraw();
+//         break;
+//       case '?':
+//         describe_obj(obj);
+//         break;
+//
+//       default:
+//         complain();
+//     }
+//   }
+// }
+//
 /*
 Here, if the passed object is on a city, we assign
 the city's function to the object.  However, we then awaken the

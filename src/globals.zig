@@ -56,6 +56,17 @@ pub const Function = enum(c_long) {
     _, // move to loc
 };
 
+pub const Direction = enum(c_int) {
+    North = 0,
+    Northeast = 1,
+    East = 2,
+    Southeast = 3,
+    South = 4,
+    Southwest = 5,
+    West = 6,
+    Northwest = 7,
+};
+
 pub extern var SMOOTH: c_int;
 pub extern var WATER_RATIO: c_int;
 pub extern var MIN_CITY_DIST: c_int;

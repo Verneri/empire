@@ -11,6 +11,8 @@ pub extern fn redraw() void;
 pub extern fn print_sector(whose: c_int, vmap: [*c]types.view_map_t, sector: c_int) void;
 pub extern fn sector_change() void;
 pub extern fn display_loc(whose: c_int, vmap: [*c]types.view_map_t, loc: c_long) void;
+pub extern fn display_score() void;
+pub extern fn complain() void;
 
 pub inline fn print_sector_u(sector: c_int) void {
     print_sector(@intFromEnum(globals.Ownership.User), &globals.user_map, sector);

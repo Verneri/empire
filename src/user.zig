@@ -2,12 +2,14 @@ const std = @import("std");
 const globals = @import("globals.zig");
 const object = @import("object.zig");
 const types = @import("types.zig");
+const piece_info_t = types.piece_info_t;
 const data = @import("data.zig");
 const terminal = @import("terminal.zig");
 const display = @import("display.zig");
 const util = @import("util.zig");
 const game = @import("game.zig");
 const map = @import("map.zig");
+const edit = @import("edit.zig");
 
 extern fn user_move() void;
 
@@ -198,7 +200,124 @@ export fn awake(obj: *types.piece_info_t) bool {
     return false;
 }
 
-extern fn ask_user(obj: *types.piece_info_t) void;
+fn ask_user(obj: *types.piece_info_t) void {
+    while (true) {
+        display.display_loc_u(obj.loc);
+        object.describe_obj(obj);
+        display.display_score();
+        display.display_loc_u(obj.loc);
+
+        const c = terminal.get_chx();
+        switch (c) {
+            'Q' => {
+                user_direction(obj, .Northwest);
+                return;
+            },
+            'W' => {
+                user_direction(obj, .North);
+                return;
+            },
+            'E' => {
+                user_direction(obj, .Northeast);
+                return;
+            },
+            'D' => {
+                user_direction(obj, .East);
+                return;
+            },
+            'C' => {
+                user_direction(obj, .Southeast);
+                return;
+            },
+            'X' => {
+                user_direction(obj, .South);
+                return;
+            },
+            'Z' => {
+                user_direction(obj, .Southwest);
+                return;
+            },
+            'A' => {
+                user_direction(obj, .West);
+                return;
+            },
+
+            'J' => {
+                edit.edit(obj.loc);
+                reset_func(obj);
+                return;
+            },
+            'V' => {
+                user_set_city_func(obj);
+                reset_func(obj);
+                return;
+            },
+
+            ' ' => {
+                user_skip(obj);
+                return;
+            },
+            'F' => {
+                user_fill(obj);
+                return;
+            },
+            'I' => {
+                user_set_dir(obj);
+                return;
+            },
+            'R' => {
+                user_random(obj);
+                return;
+            },
+            'S' => {
+                user_sentry(obj);
+                return;
+            },
+            'L' => {
+                user_land(obj);
+                return;
+            },
+            'G' => {
+                user_explore(obj);
+                return;
+            },
+            'T' => {
+                user_transport(obj);
+                return;
+            },
+            'U' => {
+                user_repair(obj);
+                return;
+            },
+            'Y' => {
+                user_armyattack(obj);
+                return;
+            },
+
+            'B' => {
+                user_build(obj);
+            },
+            'H' => {
+                user_help();
+            },
+            'K' => {
+                user_wake(obj);
+            },
+            'O' => {
+                user_cancel_auto();
+            },
+            12, 'P' => {
+                user_redraw();
+            },
+            '?' => {
+                object.describe_obj(obj);
+            },
+
+            else => display.complain(),
+        }
+    }
+}
+
 extern fn move_random(obj: *types.piece_info_t) void;
 extern fn move_fill(obj: *types.piece_info_t) void;
 extern fn move_land(obj: *types.piece_info_t) void;
@@ -210,6 +329,28 @@ extern fn move_repair(obj: *types.piece_info_t) void;
 extern fn move_transport(obj: *types.piece_info_t) void;
 extern fn move_dir(obj: *types.piece_info_t) void;
 extern fn move_path(obj: *types.piece_info_t) void;
+extern fn user_dir(obj: *types.piece_info_t, dir: c_int) void;
+extern fn reset_func(obj: *types.piece_info_t) void;
+extern fn user_set_city_func(obj: *types.piece_info_t) void;
+extern fn user_skip(arg_obj: *types.piece_info_t) void;
+extern fn user_fill(arg_obj: [*c]piece_info_t) void;
+extern fn user_set_dir(arg_obj: [*c]piece_info_t) void;
+extern fn user_random(arg_obj: [*c]piece_info_t) void;
+extern fn user_sentry(arg_obj: [*c]piece_info_t) void;
+extern fn user_land(arg_obj: [*c]piece_info_t) void;
+extern fn user_explore(arg_obj: [*c]piece_info_t) void;
+extern fn user_transport(arg_obj: [*c]piece_info_t) void;
+extern fn user_repair(arg_obj: [*c]piece_info_t) void;
+extern fn user_armyattack(arg_obj: [*c]piece_info_t) void;
+extern fn user_build(arg_obj: [*c]piece_info_t) void;
+extern fn user_help() void;
+extern fn user_wake(arg_obj: [*c]piece_info_t) void;
+extern fn user_cancel_auto() void;
+extern fn user_redraw() void;
+
+fn user_direction(obj: *types.piece_info_t, dir: globals.Direction) void {
+    user_dir(obj, @intFromEnum(dir));
+}
 
 inline fn type_is(obj: *const types.piece_info_t, ptype: globals.PieceType) bool {
     return obj.type == @intFromEnum(ptype);
