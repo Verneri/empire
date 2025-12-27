@@ -305,54 +305,54 @@ the transport, and awaken the army.
 
 static view_map_t amap[MAP_SIZE];
 
-void move_armyload(piece_info_t *obj) {
-  loc_t loc;
-  piece_info_t *p;
-
-  ABORT;
-
-  /* look for an adjacent transport */
-  loc = find_transport(USER, obj->loc);
-
-  if (loc != obj->loc) {
-    move_obj(obj, loc);
-    obj->func = NOFUNC;
-  } else { /* look for nearest non-full transport */
-    int i;
-    (void)memcpy(amap, user_map, sizeof(view_map_t) * MAP_SIZE);
-
-    /* mark loading transports or cities building transports */
-    for (p = user_obj[TRANSPORT]; p; p = p->piece_link.next)
-      if (p->count < obj_capacity(p)) /* not full? */
-        amap[p->loc].contents = '$';
-
-    for (i = 0; i < NUM_CITY; i++)
-      if (city[i].owner == USER && city[i].prod == TRANSPORT)
-        amap[city[i].loc].contents = '$';
-  }
-}
+// void move_armyload(piece_info_t *obj) {
+//   loc_t loc;
+//   piece_info_t *p;
+//
+//   ABORT;
+//
+//   /* look for an adjacent transport */
+//   loc = find_transport(USER, obj->loc);
+//
+//   if (loc != obj->loc) {
+//     move_obj(obj, loc);
+//     obj->func = NOFUNC;
+//   } else { /* look for nearest non-full transport */
+//     int i;
+//     (void)memcpy(amap, user_map, sizeof(view_map_t) * MAP_SIZE);
+//
+//     /* mark loading transports or cities building transports */
+//     for (p = user_obj[TRANSPORT]; p; p = p->piece_link.next)
+//       if (p->count < obj_capacity(p)) /* not full? */
+//         amap[p->loc].contents = '$';
+//
+//     for (i = 0; i < NUM_CITY; i++)
+//       if (city[i].owner == USER && city[i].prod == TRANSPORT)
+//         amap[city[i].loc].contents = '$';
+//   }
+// }
 
 /*
 Move an army toward an attackable city or enemy army.
 */
 
-void move_armyattack(piece_info_t *obj) {
-  path_map_t path_map[MAP_SIZE];
-  loc_t loc;
+// void move_armyattack(piece_info_t *obj) {
+//   path_map_t path_map[MAP_SIZE];
+//   loc_t loc;
+//
+//   ASSERT(obj->type == ARMY);
+//
+//   loc = vmap_find_lobj(path_map, user_map, obj->loc, &user_army_attack);
+//
+//   if (loc == obj->loc) return; /* nothing to attack */
+//
+//   vmap_mark_path(path_map, user_map, loc);
+//
+//   loc = vmap_find_dir(path_map, user_map, obj->loc, "+", "X*a");
+//   if (loc != obj->loc) move_obj(obj, loc);
+// }
 
-  ASSERT(obj->type == ARMY);
-
-  loc = vmap_find_lobj(path_map, user_map, obj->loc, &user_army_attack);
-
-  if (loc == obj->loc) return; /* nothing to attack */
-
-  vmap_mark_path(path_map, user_map, loc);
-
-  loc = vmap_find_dir(path_map, user_map, obj->loc, "+", "X*a");
-  if (loc != obj->loc) move_obj(obj, loc);
-}
-
-void move_ttload(piece_info_t *obj __attribute__((unused))) { ABORT; }
+//void move_ttload(piece_info_t *obj __attribute__((unused))) { ABORT; }
 
 /*
 Move a ship toward port.  If the ship is healthy, wake it up.

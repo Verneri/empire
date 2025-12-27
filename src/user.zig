@@ -323,9 +323,9 @@ fn ask_user(obj: *types.piece_info_t) void {
     }
 }
 
-// Move a piece at random.  We create a list of empty squares to which
-// the piece can move.  If there are none, we do nothing, otherwise we
-// move the piece to a random adjacent square.
+/// Move a piece at random.  We create a list of empty squares to which
+/// the piece can move.  If there are none, we do nothing, otherwise we
+/// move the piece to a random adjacent square.
 fn move_random(obj: *types.piece_info_t) void {
     var nloc: usize = 0;
     var loc_list: [8]c_long = [_]c_long{0} ** 8;
@@ -341,9 +341,9 @@ fn move_random(obj: *types.piece_info_t) void {
     }
 }
 
-// Here we have a transport or carrier waiting to be filled.  If the
-// object is not full, we set the move count to its maximum value.
-// Otherwise we awaken the object.
+/// Here we have a transport or carrier waiting to be filled.  If the
+/// object is not full, we set the move count to its maximum value.
+/// Otherwise we awaken the object.
 fn move_fill(obj: *types.piece_info_t) void {
     if (obj.count == object.capacity(obj)) {
         obj.*.func = @intFromEnum(globals.Function.NoFunc);
@@ -352,10 +352,10 @@ fn move_fill(obj: *types.piece_info_t) void {
     }
 }
 
-// Here we have a piece that wants to land at the nearest carrier or
-// owned city.  We scan through the lists of cities and carriers looking
-// for the closest one.  We then move toward that item's location.
-// The nearest landing field must be within the object's range.
+/// Here we have a piece that wants to land at the nearest carrier or
+/// owned city.  We scan through the lists of cities and carriers looking
+/// for the closest one.  We then move toward that item's location.
+/// The nearest landing field must be within the object's range.
 fn move_land(obj: *types.piece_info_t) void {
     var best_loc: c_long = 0;
     var best_dist = object.find_nearest_city(obj.loc, @intFromEnum(globals.Ownership.User), &best_loc);
@@ -377,9 +377,10 @@ fn move_land(obj: *types.piece_info_t) void {
         obj.*.func = @intFromEnum(globals.Function.NoFunc);
     }
 }
-// Have a piece explore.  We look for the nearest unexplored territory
-// which the piece can reach and have to piece move toward the
-// territory.
+
+/// Have a piece explore.  We look for the nearest unexplored territory
+/// which the piece can reach and have to piece move toward the
+/// territory.
 fn move_explore(obj: *types.piece_info_t) void {
     var path_map: [globals.MAP_SIZE]types.path_map_t = undefined;
     const loc_terrain = switch (piece_type(obj)) {
@@ -413,10 +414,81 @@ fn move_explore(obj: *types.piece_info_t) void {
     if (dest != obj.loc) object.move_obj(obj, dest);
 }
 
-extern fn move_armyload(obj: *types.piece_info_t) void;
-extern fn move_armyattack(obj: *types.piece_info_t) void;
-extern fn move_ttload(obj: *types.piece_info_t) void;
-extern fn move_repair(obj: *types.piece_info_t) void;
+/// Move an army toward the nearest loading transport.
+/// If there is an adjacent transport, move the army onto
+/// the transport, and awaken the army.
+/// current implementation just panics
+fn move_armyload(obj: *types.piece_info_t) void {
+    _ = obj;
+    std.debug.panic("no implementation for move_armyload. aborting", .{});
+}
+
+/// Move an army toward an attackable city or enemy army.
+fn move_armyattack(obj: *types.piece_info_t) void {
+    if (piece_type(obj) != .Army) {
+        std.debug.panic("Army attack invoked for: {s}", .{@tagName(piece_type(obj))});
+    }
+    var path_map: [globals.MAP_SIZE]types.path_map_t = undefined;
+    const loc = map.vmap_find_lobj(
+        &path_map,
+        &globals.user_map,
+        obj.loc,
+        &globals.user_army_attack,
+    );
+    if (loc == obj.loc) return;
+    map.vmap_mark_path(&path_map, &globals.user_map, loc);
+    const dest = map.vmap_find_dir(
+        &path_map,
+        &globals.user_map,
+        obj.loc,
+        "+",
+        "X*a",
+    );
+    if (obj.loc != dest) object.move_obj(obj, dest);
+}
+
+/// unclear what this is meant to be, current implementation just panics
+fn move_ttload(obj: *types.piece_info_t) void {
+    _ = obj;
+    std.debug.panic("no implementation for move_ttload", .{});
+}
+
+/// Move a ship toward port.  If the ship is healthy, wake it up.
+fn move_repair(obj: *types.piece_info_t) void {
+    if (obj.type > @intFromEnum(globals.PieceType.Fighter)) {
+        std.debug.panic("Repair invoked for: {s}", .{@tagName(piece_type(obj))});
+    }
+
+    if (obj.hits == piece_attr(piece_type(obj)).max_hits) {
+        obj.*.func = @intFromEnum(globals.Function.NoFunc);
+        return;
+    }
+
+    if (globals.user_map[@intCast(obj.loc)].contents == 'O') {
+        obj.*.moved += 1;
+        return;
+    }
+
+    var path_map: [globals.MAP_SIZE]types.path_map_t = undefined;
+
+    const loc = map.vmap_find_wobj(
+        &path_map,
+        &globals.user_map,
+        obj.loc,
+        &globals.user_ship_repair,
+    );
+    if (loc == obj.loc) return;
+    map.vmap_mark_path(&path_map, &globals.user_map, loc);
+    const dest = map.vmap_find_dir(
+        &path_map,
+        &globals.user_map,
+        obj.loc,
+        ".O",
+        ".",
+    );
+    if (obj.loc != dest) object.move_obj(obj, dest);
+}
+
 extern fn move_transport(obj: *types.piece_info_t) void;
 extern fn move_dir(obj: *types.piece_info_t) void;
 extern fn move_path(obj: *types.piece_info_t) void;

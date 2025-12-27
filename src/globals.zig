@@ -1,4 +1,6 @@
 const types = @import("types.zig");
+const move_info_t = types.move_info_t;
+
 pub export var save_interval: u16 = undefined;
 
 pub const MAP_WIDTH = @as(c_int, 100);
@@ -89,3 +91,5 @@ pub extern var user_obj: [NUM_OBJECTS][*c]types.piece_info_t;
 pub extern var user_army: types.move_info_t;
 pub extern var user_fighter: types.move_info_t;
 pub extern var user_ship: types.move_info_t;
+pub extern var user_army_attack: move_info_t;
+pub extern var user_ship_repair: move_info_t;
