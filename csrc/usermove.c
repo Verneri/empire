@@ -284,18 +284,18 @@ army to find a non-full transport.  If one is present, we move the
 army to the transport and waken the army.
 */
 
-void move_transport(piece_info_t *obj) {
-  loc_t loc;
-
-  /* look for an adjacent transport */
-  loc = find_transport(USER, obj->loc);
-
-  if (loc != obj->loc) {
-    move_obj(obj, loc);
-    obj->func = NOFUNC;
-  } else
-    obj->moved = piece_attr[obj->type].speed;
-}
+// void move_transport(piece_info_t *obj) {
+//   loc_t loc;
+//
+//   /* look for an adjacent transport */
+//   loc = find_transport(USER, obj->loc);
+//
+//   if (loc != obj->loc) {
+//     move_obj(obj, loc);
+//     obj->func = NOFUNC;
+//   } else
+//     obj->moved = piece_attr[obj->type].speed;
+// }
 
 /*
 Move an army toward the nearest loading transport.
@@ -358,32 +358,32 @@ Move an army toward an attackable city or enemy army.
 Move a ship toward port.  If the ship is healthy, wake it up.
 */
 
-void move_repair(piece_info_t *obj) {
-  path_map_t path_map[MAP_SIZE];
-  loc_t loc;
-
-  ASSERT(obj->type > FIGHTER);
-
-  if (obj->hits == piece_attr[obj->type].max_hits) {
-    obj->func = NOFUNC;
-    return;
-  }
-
-  if (user_map[obj->loc].contents == 'O') { /* it is in port? */
-    obj->moved += 1;
-    return;
-  }
-
-  loc = vmap_find_wobj(path_map, user_map, obj->loc, &user_ship_repair);
-
-  if (loc == obj->loc) return; /* no reachable city */
-
-  vmap_mark_path(path_map, user_map, loc);
-
-  /* try to be next to ocean to avoid enemy pieces */
-  loc = vmap_find_dir(path_map, user_map, obj->loc, ".O", ".");
-  if (loc != obj->loc) move_obj(obj, loc);
-}
+// void move_repair(piece_info_t *obj) {
+//   path_map_t path_map[MAP_SIZE];
+//   loc_t loc;
+//
+//   ASSERT(obj->type > FIGHTER);
+//
+//   if (obj->hits == piece_attr[obj->type].max_hits) {
+//     obj->func = NOFUNC;
+//     return;
+//   }
+//
+//   if (user_map[obj->loc].contents == 'O') { /* it is in port? */
+//     obj->moved += 1;
+//     return;
+//   }
+//
+//   loc = vmap_find_wobj(path_map, user_map, obj->loc, &user_ship_repair);
+//
+//   if (loc == obj->loc) return; /* no reachable city */
+//
+//   vmap_mark_path(path_map, user_map, loc);
+//
+//   /* try to be next to ocean to avoid enemy pieces */
+//   loc = vmap_find_dir(path_map, user_map, obj->loc, ".O", ".");
+//   if (loc != obj->loc) move_obj(obj, loc);
+// }
 
 /*
 Here we have a transport or carrier waiting to be filled.  If the
@@ -436,15 +436,15 @@ If the object is a fighter which has travelled for half its range,
 we wake it up.
 */
 
-void move_dir(piece_info_t *obj) {
-  loc_t loc;
-  int dir;
-
-  dir = MOVE_DIR(obj->func);
-  loc = obj->loc + dir_offset[dir];
-
-  if (good_loc(obj, loc)) move_obj(obj, loc);
-}
+// void move_dir(piece_info_t *obj) {
+//   loc_t loc;
+//   int dir;
+//
+//   dir = MOVE_DIR(obj->func);
+//   loc = obj->loc + dir_offset[dir];
+//
+//   if (good_loc(obj, loc)) move_obj(obj, loc);
+// }
 
 /*
 Move a piece toward a specified destination if possible.  For each

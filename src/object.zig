@@ -9,6 +9,7 @@ pub extern fn find_nearest_city(loc: c_long, owner: c_int, city_loc: [*c]c_long)
 pub extern fn describe_obj(obj: [*c]piece_info_t) void;
 pub extern fn good_loc(obj: [*c]piece_info_t, loc: c_long) bool;
 pub extern fn move_obj(obj: [*c]piece_info_t, new_loc: c_long) void;
+pub extern fn find_transport(owner: c_int, loc: c_long) c_long;
 
 extern fn obj_capacity(obj: [*c]piece_info_t) c_int;
 extern fn obj_moves(obj: [*c]piece_info_t) c_int;

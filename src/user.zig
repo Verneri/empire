@@ -189,8 +189,8 @@ export fn awake(obj: *types.piece_info_t) bool {
         return true;
     }
 
-    for (data.dir_offset[0..8]) |dir_offset| {
-        const neighbor_loc: usize = @intCast(obj.loc + dir_offset);
+    for (data.dir_offset[0..8]) |offset| {
+        const neighbor_loc: usize = @intCast(obj.loc + offset);
         const c = globals.user_map[neighbor_loc].contents;
         if (std.ascii.isLower(c) or
             c == data.MAP_CITY or
@@ -455,7 +455,7 @@ fn move_ttload(obj: *types.piece_info_t) void {
 
 /// Move a ship toward port.  If the ship is healthy, wake it up.
 fn move_repair(obj: *types.piece_info_t) void {
-    if (obj.type > @intFromEnum(globals.PieceType.Fighter)) {
+    if (obj.type <= @intFromEnum(globals.PieceType.Fighter)) {
         std.debug.panic("Repair invoked for: {s}", .{@tagName(piece_type(obj))});
     }
 
@@ -489,8 +489,30 @@ fn move_repair(obj: *types.piece_info_t) void {
     if (obj.loc != dest) object.move_obj(obj, dest);
 }
 
-extern fn move_transport(obj: *types.piece_info_t) void;
-extern fn move_dir(obj: *types.piece_info_t) void;
+/// Move an army onto a transport when it arrives.  We scan around the
+/// army to find a non-full transport.  If one is present, we move the
+/// army to the transport and waken the army.
+fn move_transport(obj: *types.piece_info_t) void {
+    const loc = object.find_transport(@intFromEnum(globals.Ownership.User), obj.loc);
+    if (loc != obj.loc) {
+        object.move_obj(obj, loc);
+        obj.*.func = @intFromEnum(globals.Function.NoFunc);
+    } else {
+        obj.*.moved = piece_attr(piece_type(obj)).speed;
+    }
+}
+/// Move a piece in the specified direction if possible.
+/// If the object is a fighter which has travelled for half its range,
+/// we wake it up.
+fn move_dir(obj: *types.piece_info_t) void {
+    const dir = to_move_dir(function(obj)) catch {
+        std.debug.panic("trying to convert a non movement direction function ({s}), to direction", .{@tagName(function(obj))});
+    };
+    const loc = obj.loc + dir_offset(dir);
+    if (object.good_loc(obj, loc)) {
+        object.move_obj(obj, loc);
+    }
+}
 extern fn move_path(obj: *types.piece_info_t) void;
 extern fn user_dir(obj: *types.piece_info_t, dir: c_int) void;
 extern fn reset_func(obj: *types.piece_info_t) void;
@@ -534,4 +556,17 @@ inline fn function(obj: *const types.piece_info_t) globals.Function {
 
 inline fn has_destination(obj: *const types.piece_info_t) bool {
     return obj.func > 0;
+}
+
+const DirectionConversionError = error{NotADirectionFunction};
+
+inline fn to_move_dir(func: globals.Function) DirectionConversionError!globals.Direction {
+    const n = @intFromEnum(func);
+    if (n > @intFromEnum(globals.Function.Move_N)) {
+        return @enumFromInt((-1 * n) + @intFromEnum(globals.Function.Move_N));
+    } else return DirectionConversionError.NotADirectionFunction;
+}
+
+inline fn dir_offset(dir: globals.Direction) c_int {
+    return data.dir_offset[@intCast(@intFromEnum(dir))];
 }
