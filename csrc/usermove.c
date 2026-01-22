@@ -453,12 +453,12 @@ to our destination, and if there is nothing in the way.  If so, we
 move in the first direction we find.
 */
 
-void move_path(piece_info_t *obj) {
-  if (obj->loc == obj->func)
-    obj->func = NOFUNC;
-  else
-    move_to_dest(obj, obj->func);
-}
+// void move_path(piece_info_t *obj) {
+//   if (obj->loc == obj->func)
+//     obj->func = NOFUNC;
+//   else
+//     move_to_dest(obj, obj->func);
+// }
 
 /*
 Move a piece toward a specific destination.  We first map out
@@ -467,36 +467,36 @@ Then we mark the paths to the destination.  Then we choose a
 move.
 */
 
-void move_to_dest(piece_info_t *obj, loc_t dest) {
-  path_map_t path_map[MAP_SIZE];
-  int fterrain;
-  const char *mterrain;
-  loc_t new_loc;
-
-  switch (obj->type) {
-    case ARMY:
-      fterrain = T_LAND;
-      mterrain = "+";
-      break;
-    case FIGHTER:
-      fterrain = T_AIR;
-      mterrain = "+.O";
-      break;
-    default:
-      fterrain = T_WATER;
-      mterrain = ".O";
-      break;
-  }
-
-  new_loc = vmap_find_dest(path_map, user_map, obj->loc, dest, USER, fterrain);
-  if (new_loc == obj->loc) return; /* can't get there */
-
-  vmap_mark_path(path_map, user_map, dest);
-  new_loc = vmap_find_dir(path_map, user_map, obj->loc, mterrain, " .");
-  if (new_loc == obj->loc) return; /* can't move ahead */
-  ASSERT(good_loc(obj, new_loc));
-  move_obj(obj, new_loc); /* everything looks good */
-}
+// void move_to_dest(piece_info_t *obj, loc_t dest) {
+//   path_map_t path_map[MAP_SIZE];
+//   int fterrain;
+//   const char *mterrain;
+//   loc_t new_loc;
+//
+//   switch (obj->type) {
+//     case ARMY:
+//       fterrain = T_LAND;
+//       mterrain = "+";
+//       break;
+//     case FIGHTER:
+//       fterrain = T_AIR;
+//       mterrain = "+.O";
+//       break;
+//     default:
+//       fterrain = T_WATER;
+//       mterrain = ".O";
+//       break;
+//   }
+//
+//   new_loc = vmap_find_dest(path_map, user_map, obj->loc, dest, USER, fterrain);
+//   if (new_loc == obj->loc) return; /* can't get there */
+//
+//   vmap_mark_path(path_map, user_map, dest);
+//   new_loc = vmap_find_dir(path_map, user_map, obj->loc, mterrain, " .");
+//   if (new_loc == obj->loc) return; /* can't move ahead */
+//   ASSERT(good_loc(obj, new_loc));
+//   move_obj(obj, new_loc); /* everything looks good */
+// }
 
 /*
 Ask the user to move her piece.

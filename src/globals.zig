@@ -69,6 +69,14 @@ pub const Direction = enum(c_int) {
     Northwest = 7,
 };
 
+pub const Terrain = enum(c_int) {
+    Unknown = 0,
+    Path = 1,
+    Land = 2,
+    Water = 4,
+    Air = 2 | 4,
+};
+
 pub extern var SMOOTH: c_int;
 pub extern var WATER_RATIO: c_int;
 pub extern var MIN_CITY_DIST: c_int;

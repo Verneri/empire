@@ -9,3 +9,4 @@ pub extern fn vmap_find_lobj(path_map: [*c]path_map_t, vmap: [*c]view_map_t, loc
 pub extern fn vmap_mark_path(path_map: [*c]path_map_t, vmap: [*c]view_map_t, dest: c_long) void;
 pub extern fn vmap_mark_adjacent(path_map: [*c]path_map_t, loc: c_long) void;
 pub extern fn vmap_find_dir(path_map: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, terrain: [*c]const u8, adjchar: [*c]const u8) c_long;
+pub extern fn vmap_find_dest(path_map: [*c]path_map_t, vmap: [*c]view_map_t, cur_loc: c_long, dest_loc: c_long, owner: c_int, terrain: c_int) c_long;

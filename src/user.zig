@@ -513,7 +513,54 @@ fn move_dir(obj: *types.piece_info_t) void {
         object.move_obj(obj, loc);
     }
 }
-extern fn move_path(obj: *types.piece_info_t) void;
+
+/// Move a piece toward a specified destination if possible.  For each
+/// direction, we see if moving in that direction would bring us closer
+/// to our destination, and if there is nothing in the way.  If so, we
+/// move in the first direction we find.
+fn move_path(obj: *types.piece_info_t) void {
+    if (obj.loc == obj.func) {
+        obj.func = @intFromEnum(globals.Function.NoFunc);
+    } else {
+        object.move_obj(obj, obj.func);
+    }
+}
+
+/// Move a piece toward a specific destination.  We first map out
+/// the paths to the destination, if we can't get there, we return.
+/// Then we mark the paths to the destination.  Then we choose a
+/// move.
+fn move_to_dest(obj: *types.piece_info_t, dest: c_long) void {
+    var path_map: [globals.MAP_SIZE]types.path_map_t = undefined;
+    const fm_terrain = switch (piece_type(obj)) {
+        .Army => .{
+            @intFromEnum(globals.Terrain.Land),
+            "+",
+        },
+        .Fighter => .{
+            @intFromEnum(globals.Terrain.Air),
+            "+.O",
+        },
+        else => .{
+            @intFromEnum(globals.Terrain.Water),
+            ".O",
+        },
+    };
+    const fterrain = fm_terrain.@"0";
+    const mterrain = fm_terrain.@"1";
+
+    const loc = map.vmap_find_dest(&path_map, &globals.user_map, obj.loc, dest, @intFromEnum(globals.Ownership.User), fterrain);
+
+    if (loc == obj.loc) return;
+
+    map.vmap_mark_path(&path_map, &globals.user_map, dest);
+
+    const new_loc = map.vmap_find_dir(&path_map, &globals.user_map, obj.loc, mterrain, " .");
+    if (!object.good_loc(obj, new_loc)) {
+        std.debug.panic("location is not suitable for the object", .{});
+    }
+    object.move_obj(obj, new_loc);
+}
 extern fn user_dir(obj: *types.piece_info_t, dir: c_int) void;
 extern fn reset_func(obj: *types.piece_info_t) void;
 extern fn user_set_city_func(obj: *types.piece_info_t) void;
@@ -532,7 +579,6 @@ extern fn user_help() void;
 extern fn user_wake(arg_obj: [*c]piece_info_t) void;
 extern fn user_cancel_auto() void;
 extern fn user_redraw() void;
-extern fn move_to_dest(arg_obj: [*c]piece_info_t, arg_dest: c_long) void;
 
 fn user_direction(obj: *types.piece_info_t, dir: globals.Direction) void {
     user_dir(obj, @intFromEnum(dir));
