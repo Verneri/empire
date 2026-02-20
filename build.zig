@@ -26,14 +26,6 @@ pub fn build(b: *std.Build) void {
         }),
     });
     empire.linkSystemLibrary("ncurses");
-    empire.addIncludePath(.{ .cwd_relative = "include" });
-    empire.addCSourceFiles(.{
-        .root = .{ .cwd_relative = "csrc" },
-        .files = &.{
-            "compmove.c",
-        },
-        .flags = &.{ "-Wall", "-Wno-format-security", "-fno-sanitize=alignment" },
-    });
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default

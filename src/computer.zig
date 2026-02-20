@@ -1,4 +1,4 @@
-extern fn comp_move(nmoves: c_int) void;
+const compmove = @import("compmove.zig");
 pub fn move(nmoves: u8) void {
-    comp_move(@intCast(nmoves));
+    compmove.comp_move(@intCast(nmoves));
 }
