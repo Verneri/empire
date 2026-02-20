@@ -32,7 +32,6 @@ pub fn build(b: *std.Build) void {
         .files = &.{
             "compmove.c",
             "map.c",
-            "usermove.c",
         },
         .flags = &.{ "-Wall", "-Wno-format-security", "-fno-sanitize=alignment" },
     });

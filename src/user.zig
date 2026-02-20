@@ -11,8 +11,7 @@ const game = @import("game.zig");
 const map = @import("map.zig");
 const edit = @import("edit.zig");
 const math = @import("math.zig");
-
-extern fn user_move() void;
+const attack = @import("attack.zig");
 
 pub fn move() void {
     // reset moved for units
@@ -561,27 +560,311 @@ fn move_to_dest(obj: *types.piece_info_t, dest: c_long) void {
     }
     object.move_obj(obj, new_loc);
 }
-extern fn user_dir(obj: *types.piece_info_t, dir: c_int) void;
-extern fn reset_func(obj: *types.piece_info_t) void;
-extern fn user_set_city_func(obj: *types.piece_info_t) void;
-extern fn user_skip(arg_obj: *types.piece_info_t) void;
-extern fn user_fill(arg_obj: [*c]piece_info_t) void;
-extern fn user_set_dir(arg_obj: [*c]piece_info_t) void;
-extern fn user_random(arg_obj: [*c]piece_info_t) void;
-extern fn user_sentry(arg_obj: [*c]piece_info_t) void;
-extern fn user_land(arg_obj: [*c]piece_info_t) void;
-extern fn user_explore(arg_obj: [*c]piece_info_t) void;
-extern fn user_transport(arg_obj: [*c]piece_info_t) void;
-extern fn user_repair(arg_obj: [*c]piece_info_t) void;
-extern fn user_armyattack(arg_obj: [*c]piece_info_t) void;
-extern fn user_build(arg_obj: [*c]piece_info_t) void;
-extern fn user_help() void;
-extern fn user_wake(arg_obj: [*c]piece_info_t) void;
-extern fn user_cancel_auto() void;
-extern fn user_redraw() void;
-
 fn user_direction(obj: *types.piece_info_t, dir: globals.Direction) void {
-    user_dir(obj, @intFromEnum(dir));
+    user_dir(obj, dir);
+}
+
+fn reset_func(obj: *types.piece_info_t) void {
+    const cityp = object.find_city(obj.loc);
+    if (cityp != null) {
+        const func = cityp.*.func[@intCast(obj.type)];
+        if (func != @intFromEnum(globals.Function.NoFunc)) {
+            obj.*.func = func;
+            _ = awake(obj);
+        }
+    }
+}
+
+fn user_skip(obj: *types.piece_info_t) void {
+    if (obj.type == @intFromEnum(globals.PieceType.Army) and
+        globals.user_map[@intCast(obj.loc)].contents == 'O')
+    {
+        move_army_to_city(obj, obj.loc);
+    } else {
+        obj.*.moved += 1;
+    }
+}
+
+fn user_fill(obj: *types.piece_info_t) void {
+    if (obj.type != @intFromEnum(globals.PieceType.Transport) and
+        obj.type != @intFromEnum(globals.PieceType.Carrier))
+    {
+        display.complain();
+    } else {
+        obj.*.func = @intFromEnum(globals.Function.Fill);
+    }
+}
+
+fn user_help() void {
+    terminal.help(&data.help_user, data.user_lines);
+    terminal.prompt("Press any key to continue: ");
+    _ = terminal.get_chx();
+}
+
+fn user_set_dir(obj: *types.piece_info_t) void {
+    const c = terminal.get_chx();
+    const func: ?globals.Function = switch (c) {
+        'Q' => .Move_NW,
+        'W' => .Move_N,
+        'E' => .Move_NE,
+        'D' => .Move_E,
+        'C' => .Move_SE,
+        'X' => .Move_S,
+        'Z' => .Move_SW,
+        'A' => .Move_W,
+        else => null,
+    };
+    if (func) |f| {
+        obj.*.func = @intFromEnum(f);
+    } else {
+        display.complain();
+    }
+}
+
+fn user_wake(obj: *types.piece_info_t) void {
+    obj.*.func = @intFromEnum(globals.Function.NoFunc);
+}
+
+fn user_random(obj: *types.piece_info_t) void {
+    obj.*.func = @intFromEnum(globals.Function.Random);
+}
+
+fn user_sentry(obj: *types.piece_info_t) void {
+    obj.*.func = @intFromEnum(globals.Function.Sentry);
+}
+
+fn user_land(obj: *types.piece_info_t) void {
+    if (obj.type != @intFromEnum(globals.PieceType.Fighter)) {
+        display.complain();
+    } else {
+        obj.*.func = @intFromEnum(globals.Function.Land);
+    }
+}
+
+fn user_explore(obj: *types.piece_info_t) void {
+    obj.*.func = @intFromEnum(globals.Function.Explore);
+}
+
+fn user_transport(obj: *types.piece_info_t) void {
+    if (obj.type != @intFromEnum(globals.PieceType.Army)) {
+        display.complain();
+    } else {
+        obj.*.func = @intFromEnum(globals.Function.WFTransport);
+    }
+}
+
+fn user_armyattack(obj: *types.piece_info_t) void {
+    if (obj.type != @intFromEnum(globals.PieceType.Army)) {
+        display.complain();
+    } else {
+        obj.*.func = @intFromEnum(globals.Function.ArmyAttack);
+    }
+}
+
+fn user_repair(obj: *types.piece_info_t) void {
+    if (obj.type == @intFromEnum(globals.PieceType.Army) or
+        obj.type == @intFromEnum(globals.PieceType.Fighter))
+    {
+        display.complain();
+    } else {
+        obj.*.func = @intFromEnum(globals.Function.Repair);
+    }
+}
+
+fn user_set_city_func(obj: *types.piece_info_t) void {
+    const cityp = object.find_city(obj.loc);
+    if (cityp == null or cityp.*.owner != @intFromEnum(globals.Ownership.User)) {
+        display.complain();
+        return;
+    }
+
+    const piece_t = object.get_piece_name();
+    if (piece_t == @intFromEnum(globals.PieceType.NoPiece)) {
+        display.complain();
+        return;
+    }
+
+    const e = terminal.get_chx();
+    switch (e) {
+        'F' => edit.e_city_fill(cityp, piece_t),
+        'G' => edit.e_city_explore(cityp, piece_t),
+        'I' => edit.e_city_stasis(cityp, piece_t),
+        'K' => edit.e_city_wake(cityp, piece_t),
+        'R' => edit.e_city_random(cityp, piece_t),
+        'U' => edit.e_city_repair(cityp, piece_t),
+        'Y' => edit.e_city_attack(cityp, piece_t),
+        else => display.complain(),
+    }
+}
+
+fn user_build(obj: *types.piece_info_t) void {
+    if (globals.user_map[@intCast(obj.loc)].contents != 'O') {
+        display.complain();
+        return;
+    }
+    const cityp = object.find_city(obj.loc);
+    std.debug.assert(cityp != null);
+    object.set_prod(cityp);
+}
+
+fn user_dir(obj: *types.piece_info_t, dir: globals.Direction) void {
+    const loc = obj.loc + dir_offset(dir);
+
+    if (object.good_loc(obj, loc)) {
+        object.move_obj(obj, loc);
+        return;
+    }
+    if (!globals.map[@intCast(loc)].on_board) {
+        terminal.@"error"("You cannot move to the edge of the world.");
+        display.delay();
+        return;
+    }
+    switch (@as(globals.PieceType, @enumFromInt(obj.type))) {
+        .Army => user_dir_army(obj, loc),
+        .Fighter => user_dir_fighter(obj, loc),
+        else => user_dir_ship(obj, loc),
+    }
+}
+
+fn user_dir_army(obj: *types.piece_info_t, loc: c_long) void {
+    const uloc: usize = @intCast(loc);
+    const obj_uloc: usize = @intCast(obj.loc);
+
+    if (globals.user_map[uloc].contents == 'O') {
+        move_army_to_city(obj, loc);
+    } else if (globals.user_map[uloc].contents == 'T') {
+        fatal(obj, loc,
+            "Sorry, sir.  There is no more room on the transport.  Do you insist? ",
+            "Your army jumped into the briny and drowned.");
+    } else if (globals.map[uloc].contents == data.MAP_SEA) {
+        var enemy_killed = false;
+
+        if (!terminal.getyn(
+            "Troops can't walk on water, sir.  Do you really want to go to sea? "))
+            return;
+
+        if (globals.user_map[obj_uloc].contents == 'T') {
+            terminal.comment("Your army jumped into the briny and drowned.");
+            terminal.ksend("Your army jumped into the briny and drowned.\n");
+        } else if (globals.user_map[uloc].contents == data.MAP_SEA) {
+            terminal.comment("Your army marched dutifully into the sea and drowned.");
+            terminal.ksend("Your army marched dutifully into the sea and drowned.\n");
+        } else {
+            enemy_killed = std.ascii.isLower(globals.user_map[uloc].contents);
+            attack.attack(obj, loc);
+
+            if (obj.hits > 0) {
+                terminal.comment("Your army regretfully drowns after its successful assault.");
+                terminal.ksend("Your army regretfully drowns after its successful assault.");
+            }
+        }
+        if (obj.hits > 0) {
+            object.kill_obj(obj, loc);
+            if (enemy_killed) object.scan(&globals.comp_map, loc);
+        }
+    } else if (std.ascii.isUpper(globals.user_map[uloc].contents) and
+        globals.user_map[uloc].contents != 'X')
+    {
+        if (!terminal.getyn("Sir, those are our men!  Do you really want to attack them? "))
+            return;
+        attack.attack(obj, loc);
+    } else {
+        attack.attack(obj, loc);
+    }
+}
+
+fn user_dir_fighter(obj: *types.piece_info_t, loc: c_long) void {
+    const uloc: usize = @intCast(loc);
+
+    if (globals.map[uloc].contents == data.MAP_CITY) {
+        fatal(obj, loc,
+            "That's never worked before, sir.  Do you really want to try? ",
+            "Your fighter was shot down.");
+    } else if (std.ascii.isUpper(globals.user_map[uloc].contents)) {
+        if (!terminal.getyn("Sir, those are our men!  Do you really want to attack them? "))
+            return;
+        attack.attack(obj, loc);
+    } else {
+        attack.attack(obj, loc);
+    }
+}
+
+fn user_dir_ship(obj: *types.piece_info_t, loc: c_long) void {
+    const c = @cImport({
+        @cInclude("stdio.h");
+    });
+    const uloc: usize = @intCast(loc);
+
+    if (globals.map[uloc].contents == data.MAP_CITY) {
+        _ = c.snprintf(&globals.jnkbuf, globals.STRSIZE, "Your %s broke up on shore.",
+            @as([*c]const u8, &data.piece_attr[@intCast(obj.type)].name));
+
+        fatal(obj, loc,
+            "That's never worked before, sir.  Do you really want to try? ",
+            &globals.jnkbuf);
+    } else if (globals.map[uloc].contents == data.MAP_LAND) {
+        var enemy_killed = false;
+
+        if (!terminal.getyn(
+            "Ships need sea to float, sir.  Do you really want to go ashore? "))
+            return;
+
+        if (globals.user_map[uloc].contents == data.MAP_LAND) {
+            terminal.comment("Your %s broke up on shore.", @as([*c]const u8, &data.piece_attr[@intCast(obj.type)].name));
+            terminal.ksend("Your %s broke up on shore.", @as([*c]const u8, &data.piece_attr[@intCast(obj.type)].name));
+        } else {
+            enemy_killed = std.ascii.isLower(globals.user_map[uloc].contents);
+            attack.attack(obj, loc);
+
+            if (obj.hits > 0) {
+                terminal.comment("Your %s breaks up after its successful assault.",
+                    @as([*c]const u8, &data.piece_attr[@intCast(obj.type)].name));
+                terminal.ksend("Your %s breaks up after its successful assault.",
+                    @as([*c]const u8, &data.piece_attr[@intCast(obj.type)].name));
+            }
+        }
+        if (obj.hits > 0) {
+            object.kill_obj(obj, loc);
+            if (enemy_killed) object.scan(&globals.comp_map, loc);
+        }
+    } else if (std.ascii.isUpper(globals.user_map[uloc].contents)) {
+        if (!terminal.getyn("Sir, those are our men!  Do you really want to attack them? "))
+            return;
+        attack.attack(obj, loc);
+    } else {
+        attack.attack(obj, loc);
+    }
+}
+
+fn move_army_to_city(obj: *types.piece_info_t, city_loc: c_long) void {
+    const tt = object.find_nfull(@intFromEnum(globals.PieceType.Transport), city_loc);
+    if (tt != null) {
+        object.move_obj(obj, city_loc);
+    } else {
+        fatal(obj, city_loc,
+            "That's our city, sir!  Do you really want to attack the garrison? ",
+            "Your rebel army was liquidated.");
+    }
+}
+
+fn user_cancel_auto() void {
+    if (!globals.automove) {
+        terminal.comment("Not in auto mode!");
+    } else {
+        globals.automove = false;
+        terminal.comment("Auto mode cancelled.");
+    }
+}
+
+fn user_redraw() void {
+    display.redraw();
+}
+
+fn fatal(obj: *types.piece_info_t, loc: c_long, message: [*c]const u8, response: [*c]const u8) void {
+    if (terminal.getyn(message)) {
+        terminal.comment(response);
+        object.kill_obj(obj, loc);
+    }
 }
 
 inline fn type_is(obj: *const types.piece_info_t, ptype: globals.PieceType) bool {

@@ -136,7 +136,7 @@ fn e_random(loc: c_long) void {
     e_set_func(loc, RANDOM);
 }
 
-export fn e_city_random(cityp: [*c]types.city_info_t, piece_type: c_int) void {
+pub export fn e_city_random(cityp: [*c]types.city_info_t, piece_type: c_int) void {
     e_set_city_func(cityp, piece_type, RANDOM);
 }
 
@@ -149,7 +149,7 @@ fn e_fill(loc: c_long) void {
     }
 }
 
-export fn e_city_fill(cityp: [*c]types.city_info_t, piece_type: c_int) void {
+pub export fn e_city_fill(cityp: [*c]types.city_info_t, piece_type: c_int) void {
     if (piece_type == TRANSPORT or piece_type == CARRIER) {
         e_set_city_func(cityp, piece_type, FILL);
     } else {
@@ -161,7 +161,7 @@ fn e_explore(loc: c_long) void {
     e_set_func(loc, EXPLORE);
 }
 
-export fn e_city_explore(cityp: [*c]types.city_info_t, piece_type: c_int) void {
+pub export fn e_city_explore(cityp: [*c]types.city_info_t, piece_type: c_int) void {
     e_set_city_func(cityp, piece_type, EXPLORE);
 }
 
@@ -189,7 +189,7 @@ fn e_attack(loc: c_long) void {
     }
 }
 
-export fn e_city_attack(cityp: [*c]types.city_info_t, piece_type: c_int) void {
+pub export fn e_city_attack(cityp: [*c]types.city_info_t, piece_type: c_int) void {
     if (piece_type == ARMY) {
         e_set_city_func(cityp, piece_type, ARMYATTACK);
     } else {
@@ -206,7 +206,7 @@ fn e_repair(loc: c_long) void {
     }
 }
 
-export fn e_city_repair(cityp: [*c]types.city_info_t, piece_type: c_int) void {
+pub export fn e_city_repair(cityp: [*c]types.city_info_t, piece_type: c_int) void {
     if (piece_type == ARMY or piece_type == FIGHTER or piece_type == SATELLITE) {
         terminal.huh();
     } else {
@@ -232,7 +232,7 @@ fn e_stasis(loc: c_long) void {
     }
 }
 
-export fn e_city_stasis(cityp: [*c]types.city_info_t, piece_type: c_int) void {
+pub export fn e_city_stasis(cityp: [*c]types.city_info_t, piece_type: c_int) void {
     const e = terminal.get_chx();
     if (std.mem.indexOfScalar(u8, dirs, e)) |i| {
         e_set_city_func(cityp, piece_type, MOVE_N - @as(c_long, @intCast(i)));
@@ -255,7 +255,7 @@ fn e_wake(loc: c_long) void {
     }
 }
 
-export fn e_city_wake(cityp: [*c]types.city_info_t, piece_type: c_int) void {
+pub export fn e_city_wake(cityp: [*c]types.city_info_t, piece_type: c_int) void {
     e_set_city_func(cityp, piece_type, NOFUNC);
 }
 
