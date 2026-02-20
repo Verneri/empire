@@ -41,9 +41,8 @@ pub fn build(b: *std.Build) void {
             "term.c",
             "usermove.c",
             "util.c",
-            "globals.c",
         },
-        .flags = &.{ "-Wall", "-Wno-format-security" },
+        .flags = &.{ "-Wall", "-Wno-format-security", "-fno-sanitize=alignment" },
     });
 
     // This declares intent for the executable to be installed into the
