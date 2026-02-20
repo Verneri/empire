@@ -31,7 +31,6 @@ pub fn build(b: *std.Build) void {
         .root = .{ .cwd_relative = "csrc" },
         .files = &.{
             "compmove.c",
-            "map.c",
         },
         .flags = &.{ "-Wall", "-Wno-format-security", "-fno-sanitize=alignment" },
     });

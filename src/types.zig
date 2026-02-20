@@ -65,3 +65,16 @@ pub const move_info_t = extern struct {
     objectives: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
     weights: [11]c_int = @import("std").mem.zeroes([11]c_int),
 };
+pub const scan_counts_t = extern struct {
+    user_cities: c_int = 0,
+    user_objects: [9]c_int = @import("std").mem.zeroes([9]c_int),
+    comp_cities: c_int = 0,
+    comp_objects: [9]c_int = @import("std").mem.zeroes([9]c_int),
+    size: c_int = 0,
+    unowned_cities: c_int = 0,
+    unexplored: c_int = 0,
+};
+pub const perimeter_t = extern struct {
+    len: c_long = 0,
+    list: [6000]c_long = @import("std").mem.zeroes([6000]c_long),
+};

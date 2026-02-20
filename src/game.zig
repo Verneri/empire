@@ -7,6 +7,7 @@ const terminal = @import("terminal.zig");
 const object = @import("object.zig");
 const math = @import("math.zig");
 const util = @import("util.zig");
+const map = @import("map.zig");
 
 const c = @cImport({
     @cInclude("stdio.h");
@@ -42,8 +43,6 @@ const MAP_LAND = data.MAP_LAND;
 const MAP_SEA = data.MAP_SEA;
 const MAP_CITY = data.MAP_CITY;
 
-// map.c extern
-extern fn rmap_shore(loc: c_long) bool;
 
 const MAX_HEIGHT = 999;
 const MAX_CONT = 10;
@@ -366,7 +365,7 @@ fn mark_cont(mapi: c_long) void {
         const unci: usize = @intCast(mc_ncity);
         cont_tab[unc].cityp[unci] = globals.map[um].cityp;
         mc_ncity += 1;
-        if (rmap_shore(mapi)) mc_nshore += 1;
+        if (map.rmap_shore(mapi)) mc_nshore += 1;
     }
 
     for (0..8) |i| {
