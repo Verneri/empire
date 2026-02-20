@@ -34,7 +34,6 @@ pub fn build(b: *std.Build) void {
             "display.c",
             "game.c",
             "map.c",
-            "object.c",
             "usermove.c",
         },
         .flags = &.{ "-Wall", "-Wno-format-security", "-fno-sanitize=alignment" },
