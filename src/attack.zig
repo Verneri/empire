@@ -9,7 +9,7 @@ const terminal = @import("terminal.zig");
 const USER: c_int = @intFromEnum(globals.Ownership.User);
 const UNOWNED: c_int = @intFromEnum(globals.Ownership.Unowned);
 
-pub export fn attack(att_obj: [*c]types.piece_info_t, loc: c_long) void {
+pub fn attack(att_obj: [*c]types.piece_info_t, loc: c_long) void {
     if (globals.map[@intCast(loc)].contents == data.MAP_CITY)
         attack_city(att_obj, loc)
     else

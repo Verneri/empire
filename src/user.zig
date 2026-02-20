@@ -167,7 +167,7 @@ fn piece_move(obj: *types.piece_info_t) void {
     }
 }
 
-export fn awake(obj: *types.piece_info_t) bool {
+fn awake(obj: *types.piece_info_t) bool {
     if (type_is(obj, .Army) and
         map.vmap_at_sea(&globals.user_map, obj.loc))
     {

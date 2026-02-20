@@ -1,7 +1,7 @@
 const std = @import("std");
 const types = @import("types.zig");
 
-pub export var save_interval: u16 = undefined;
+pub var save_interval: u16 = undefined;
 
 pub const MAP_WIDTH = @as(c_int, 100);
 pub const MAP_HEIGHT = @as(c_int, 60);
@@ -79,40 +79,40 @@ pub const Terrain = enum(c_int) {
 };
 
 // Game configuration (set during init)
-pub export var SMOOTH: c_int = 0;
-pub export var WATER_RATIO: c_int = 0;
-pub export var MIN_CITY_DIST: c_int = 0;
-pub export var delay_time: c_int = 0;
-pub export var savefile: [*c]u8 = null;
+pub var SMOOTH: c_int = 0;
+pub var WATER_RATIO: c_int = 0;
+pub var MIN_CITY_DIST: c_int = 0;
+pub var delay_time: c_int = 0;
+pub var savefile: [*c]u8 = null;
 
 // Game state
-pub export var date: c_long = 0;
-pub export var automove: bool = false;
-pub export var resigned: bool = false;
-pub export var debug: bool = false;
-pub export var print_debug: bool = false;
-pub export var print_vmap: u8 = 0;
-pub export var trace_pmap: bool = false;
-pub export var save_movie: bool = false;
-pub export var win: c_int = 0;
-pub export var user_score: c_int = 0;
-pub export var comp_score: c_int = 0;
+pub var date: c_long = 0;
+pub var automove: bool = false;
+pub var resigned: bool = false;
+pub var debug: bool = false;
+pub var print_debug: bool = false;
+pub var print_vmap: u8 = 0;
+pub var trace_pmap: bool = false;
+pub var save_movie: bool = false;
+pub var win: c_int = 0;
+pub var user_score: c_int = 0;
+pub var comp_score: c_int = 0;
 
 // Maps
-pub export var map: [MAP_SIZE]types.real_map_t = std.mem.zeroes([MAP_SIZE]types.real_map_t);
-pub export var comp_map: [MAP_SIZE]types.view_map_t = std.mem.zeroes([MAP_SIZE]types.view_map_t);
-pub export var user_map: [MAP_SIZE]types.view_map_t = std.mem.zeroes([MAP_SIZE]types.view_map_t);
+pub var map: [MAP_SIZE]types.real_map_t = std.mem.zeroes([MAP_SIZE]types.real_map_t);
+pub var comp_map: [MAP_SIZE]types.view_map_t = std.mem.zeroes([MAP_SIZE]types.view_map_t);
+pub var user_map: [MAP_SIZE]types.view_map_t = std.mem.zeroes([MAP_SIZE]types.view_map_t);
 
 // Cities
-pub export var city: [NUM_CITY]types.city_info_t = std.mem.zeroes([NUM_CITY]types.city_info_t);
+pub var city: [NUM_CITY]types.city_info_t = std.mem.zeroes([NUM_CITY]types.city_info_t);
 
 // Objects
-pub export var free_list: [*c]types.piece_info_t = null;
-pub export var user_obj: [NUM_OBJECTS][*c]types.piece_info_t = std.mem.zeroes([NUM_OBJECTS][*c]types.piece_info_t);
-pub export var comp_obj: [NUM_OBJECTS][*c]types.piece_info_t = std.mem.zeroes([NUM_OBJECTS][*c]types.piece_info_t);
-pub export var object: [LIST_SIZE]types.piece_info_t = std.mem.zeroes([LIST_SIZE]types.piece_info_t);
+pub var free_list: [*c]types.piece_info_t = null;
+pub var user_obj: [NUM_OBJECTS][*c]types.piece_info_t = std.mem.zeroes([NUM_OBJECTS][*c]types.piece_info_t);
+pub var comp_obj: [NUM_OBJECTS][*c]types.piece_info_t = std.mem.zeroes([NUM_OBJECTS][*c]types.piece_info_t);
+pub var object: [LIST_SIZE]types.piece_info_t = std.mem.zeroes([LIST_SIZE]types.piece_info_t);
 
 // Display
-pub export var lines: c_int = 0;
-pub export var cols: c_int = 0;
-pub export var jnkbuf: [STRSIZE]u8 = std.mem.zeroes([STRSIZE]u8);
+pub var lines: c_int = 0;
+pub var cols: c_int = 0;
+pub var jnkbuf: [STRSIZE]u8 = std.mem.zeroes([STRSIZE]u8);

@@ -25,7 +25,7 @@ fn weights(comptime vals: []const c_int) [11]c_int {
 
 // Piece attributes
 
-pub export var piece_attr: [9]types.piece_attr_t = .{
+pub var piece_attr: [9]types.piece_attr_t = .{
     .{ .sname = 'A', .name = strBuf(20, "army"), .nickname = strBuf(20, "army"), .article = strBuf(20, "an army"), .plural = strBuf(20, "armies"), .terrain = strBuf(4, "+"), .build_time = 5, .strength = 1, .max_hits = 1, .speed = 1, .capacity = 0, .range = INFINITY },
     .{ .sname = 'F', .name = strBuf(20, "fighter"), .nickname = strBuf(20, "fighter"), .article = strBuf(20, "a fighter"), .plural = strBuf(20, "fighters"), .terrain = strBuf(4, ".+"), .build_time = 10, .strength = 1, .max_hits = 1, .speed = 8, .capacity = 0, .range = 32 },
     .{ .sname = 'P', .name = strBuf(20, "patrol boat"), .nickname = strBuf(20, "patrol"), .article = strBuf(20, "a patrol boat"), .plural = strBuf(20, "patrol boats"), .terrain = strBuf(4, "."), .build_time = 15, .strength = 1, .max_hits = 1, .speed = 4, .capacity = 0, .range = INFINITY },
@@ -39,7 +39,7 @@ pub export var piece_attr: [9]types.piece_attr_t = .{
 
 // Direction offsets
 
-pub export var dir_offset: [8]c_int = .{
+pub var dir_offset: [8]c_int = .{
     -globals.MAP_WIDTH, // north
     -globals.MAP_WIDTH + 1, // northeast
     1, // east
@@ -52,7 +52,7 @@ pub export var dir_offset: [8]c_int = .{
 
 // Names of movement functions
 
-pub export var func_name: [19][*c]const u8 = .{
+pub var func_name: [19][*c]const u8 = .{
     "none", "random", "sentry", "fill", "land",
     "explore", "load", "attack", "load", "repair",
     "transport", "W", "E", "D", "C",
@@ -61,7 +61,7 @@ pub export var func_name: [19][*c]const u8 = .{
 
 // The order in which pieces should be moved
 
-pub export var move_order: [9]c_int = .{
+pub var move_order: [9]c_int = .{
     @intFromEnum(globals.PieceType.Satellite),
     @intFromEnum(globals.PieceType.Transport),
     @intFromEnum(globals.PieceType.Carrier),
@@ -75,35 +75,35 @@ pub export var move_order: [9]c_int = .{
 
 // Types of pieces, in declared order
 
-pub export var type_chars: [10]u8 = "AFPDSTCBZ\x00".*;
+pub var type_chars: [10]u8 = "AFPDSTCBZ\x00".*;
 
 // Lists of attackable objects if object is adjacent to moving piece
 
-pub export var tt_attack: [2]u8 = "T\x00".*;
-pub export var army_attack: [11]u8 = "O*TACFBSDP\x00".*;
-pub export var fighter_attack: [9]u8 = "TCFBSDPA\x00".*;
-pub export var ship_attack: [7]u8 = "TCBSDP\x00".*;
+pub var tt_attack: [2]u8 = "T\x00".*;
+pub var army_attack: [11]u8 = "O*TACFBSDP\x00".*;
+pub var fighter_attack: [9]u8 = "TCFBSDPA\x00".*;
+pub var ship_attack: [7]u8 = "TCBSDP\x00".*;
 
 // Movement objectives
 
-pub export var tt_explore: types.move_info_t = .{ .city_owner = COMP, .objectives = " ", .weights = weights(&.{1}) };
-pub export var tt_load: types.move_info_t = .{ .city_owner = COMP, .objectives = "$", .weights = weights(&.{1}) };
-pub export var tt_unload: types.move_info_t = .{ .city_owner = COMP, .objectives = "9876543210 ", .weights = weights(&.{ 1, 1, 1, 1, 1, 1, 11, 21, 41, 101, 61 }) };
-pub export var army_fight: types.move_info_t = .{ .city_owner = COMP, .objectives = "O*TA ", .weights = weights(&.{ 1, 1, 1, 1, 11 }) };
-pub export var army_load: types.move_info_t = .{ .city_owner = COMP, .objectives = "$x", .weights = weights(&.{ 1, W_TT_BUILD }) };
-pub export var fighter_fight: types.move_info_t = .{ .city_owner = COMP, .objectives = "TCFBSDPA ", .weights = weights(&.{ 1, 1, 5, 5, 5, 5, 5, 5, 9 }) };
-pub export var ship_fight: types.move_info_t = .{ .city_owner = COMP, .objectives = "TCBSDP ", .weights = weights(&.{ 1, 1, 3, 3, 3, 3, 21 }) };
-pub export var ship_repair: types.move_info_t = .{ .city_owner = COMP, .objectives = "X", .weights = weights(&.{1}) };
+pub var tt_explore: types.move_info_t = .{ .city_owner = COMP, .objectives = " ", .weights = weights(&.{1}) };
+pub var tt_load: types.move_info_t = .{ .city_owner = COMP, .objectives = "$", .weights = weights(&.{1}) };
+pub var tt_unload: types.move_info_t = .{ .city_owner = COMP, .objectives = "9876543210 ", .weights = weights(&.{ 1, 1, 1, 1, 1, 1, 11, 21, 41, 101, 61 }) };
+pub var army_fight: types.move_info_t = .{ .city_owner = COMP, .objectives = "O*TA ", .weights = weights(&.{ 1, 1, 1, 1, 11 }) };
+pub var army_load: types.move_info_t = .{ .city_owner = COMP, .objectives = "$x", .weights = weights(&.{ 1, W_TT_BUILD }) };
+pub var fighter_fight: types.move_info_t = .{ .city_owner = COMP, .objectives = "TCFBSDPA ", .weights = weights(&.{ 1, 1, 5, 5, 5, 5, 5, 5, 9 }) };
+pub var ship_fight: types.move_info_t = .{ .city_owner = COMP, .objectives = "TCBSDP ", .weights = weights(&.{ 1, 1, 3, 3, 3, 3, 21 }) };
+pub var ship_repair: types.move_info_t = .{ .city_owner = COMP, .objectives = "X", .weights = weights(&.{1}) };
 
-pub export var user_army: types.move_info_t = .{ .city_owner = USER, .objectives = " ", .weights = weights(&.{1}) };
-pub export var user_army_attack: types.move_info_t = .{ .city_owner = USER, .objectives = "*Xa ", .weights = weights(&.{ 1, 1, 1, 12 }) };
-pub export var user_fighter: types.move_info_t = .{ .city_owner = USER, .objectives = " ", .weights = weights(&.{1}) };
-pub export var user_ship: types.move_info_t = .{ .city_owner = USER, .objectives = " ", .weights = weights(&.{1}) };
-pub export var user_ship_repair: types.move_info_t = .{ .city_owner = USER, .objectives = "O", .weights = weights(&.{1}) };
+pub var user_army: types.move_info_t = .{ .city_owner = USER, .objectives = " ", .weights = weights(&.{1}) };
+pub var user_army_attack: types.move_info_t = .{ .city_owner = USER, .objectives = "*Xa ", .weights = weights(&.{ 1, 1, 1, 12 }) };
+pub var user_fighter: types.move_info_t = .{ .city_owner = USER, .objectives = " ", .weights = weights(&.{1}) };
+pub var user_ship: types.move_info_t = .{ .city_owner = USER, .objectives = " ", .weights = weights(&.{1}) };
+pub var user_ship_repair: types.move_info_t = .{ .city_owner = USER, .objectives = "O", .weights = weights(&.{1}) };
 
 // Help texts
 
-pub export var help_cmd: [19][*c]const u8 = .{
+pub var help_cmd: [19][*c]const u8 = .{
     "COMMAND MODE",
     "Auto:     enter automove mode",
     "City:     give city to computer",
@@ -124,9 +124,9 @@ pub export var help_cmd: [19][*c]const u8 = .{
     "Zoom:     display compressed map",
     "<ctrl-L>: redraw screen",
 };
-pub export var cmd_lines: c_int = 19;
+pub var cmd_lines: c_int = 19;
 
-pub export var help_user: [22][*c]const u8 = .{
+pub var help_user: [22][*c]const u8 = .{
     "USER MODE",
     "QWE",
     "A D       movement directions",
@@ -150,9 +150,9 @@ pub export var help_user: [22][*c]const u8 = .{
     "Y:        set func to attack",
     "?:        describe piece",
 };
-pub export var user_lines: c_int = 22;
+pub var user_lines: c_int = 22;
 
-pub export var help_edit: [22][*c]const u8 = .{
+pub var help_edit: [22][*c]const u8 = .{
     "EDIT MODE",
     "QWE",
     "A D       movement directions",
@@ -176,4 +176,4 @@ pub export var help_edit: [22][*c]const u8 = .{
     "<ctrl-L>: redraw screen",
     "?:        describe piece",
 };
-pub export var edit_lines: c_int = 22;
+pub var edit_lines: c_int = 22;

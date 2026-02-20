@@ -98,11 +98,11 @@ fn disp_square(vp: *view_map_t) void {
 
 // Public API
 
-pub export fn announce(msg: [*c]const u8) void {
+pub fn announce(msg: [*c]const u8) void {
     _ = addstr(msg);
 }
 
-pub export fn direction(ch: c_uint) c_int {
+pub fn direction(ch: c_uint) c_int {
     return switch (ch) {
         'w', 'W', c.KEY_UP => 0,
         'e', 'E', c.KEY_A3, c.KEY_PPAGE => 1,
@@ -116,20 +116,20 @@ pub export fn direction(ch: c_uint) c_int {
     };
 }
 
-pub export fn kill_display() void {
+pub fn kill_display() void {
     whose_map = UNOWNED;
 }
 
-pub export fn sector_change() void {
+pub fn sector_change() void {
     change_ok = true;
 }
 
-pub export fn cur_sector() c_int {
+pub fn cur_sector() c_int {
     if (whose_map != USER) return -1;
     return save_sector;
 }
 
-pub export fn cur_cursor() c_long {
+pub fn cur_cursor() c_long {
     if (whose_map != USER) return -1;
     return save_cursor;
 }
@@ -157,14 +157,14 @@ fn show_loc(vmap: [*c]view_map_t, loc: c_long) void {
     _ = move(r - ref_row + NUMTOPS, col - ref_col);
 }
 
-pub export fn display_loc(whose: c_int, vmap: [*c]view_map_t, loc: c_long) void {
+pub fn display_loc(whose: c_int, vmap: [*c]view_map_t, loc: c_long) void {
     if (change_ok or whose != whose_map or !on_screen(loc))
         print_sector(whose, vmap, util.loc_sector(loc));
 
     show_loc(vmap, loc);
 }
 
-pub export fn display_locx(whose: c_int, vmap: [*c]view_map_t, loc: c_long) void {
+pub fn display_locx(whose: c_int, vmap: [*c]view_map_t, loc: c_long) void {
     if (whose == whose_map and on_screen(loc)) show_loc(vmap, loc);
 }
 
@@ -183,7 +183,7 @@ fn display_screen(vmap: [*c]view_map_t) void {
     }
 }
 
-pub export fn print_sector(whose: c_int, vmap: [*c]view_map_t, sector: c_int) void {
+pub fn print_sector(whose: c_int, vmap: [*c]view_map_t, sector: c_int) void {
     save_sector = sector;
     change_ok = false;
 
@@ -244,7 +244,7 @@ pub export fn print_sector(whose: c_int, vmap: [*c]view_map_t, sector: c_int) vo
     }
 }
 
-pub export fn move_cursor(cursor: [*c]c_long, offset: c_int) bool {
+pub fn move_cursor(cursor: [*c]c_long, offset: c_int) bool {
     const t = cursor.* + offset;
     if (!globals.map[@intCast(t)].on_board) return false;
     if (!on_screen(t)) return false;
@@ -259,7 +259,7 @@ pub export fn move_cursor(cursor: [*c]c_long, offset: c_int) bool {
     return true;
 }
 
-pub export var zoom_list: [24]u8 = "XO*tcbsdpfaTCBSDPFAzZ+. ".*;
+pub var zoom_list: [24]u8 = "XO*tcbsdpfaTCBSDPFAzZ+. ".*;
 
 fn zoom_rank(ch: u8) usize {
     for (0..zoom_list.len) |i| {
@@ -283,7 +283,7 @@ fn print_zoom_cell(vmap: [*c]view_map_t, row: c_int, col: c_int, row_inc: c_int,
     _ = addch(@intCast(cell));
 }
 
-pub export fn print_zoom(vmap: [*c]view_map_t) void {
+pub fn print_zoom(vmap: [*c]view_map_t) void {
     kill_display();
 
     const row_inc = @divTrunc(MAP_HEIGHT + globals.lines - NUMTOPS - 1, globals.lines - NUMTOPS);
@@ -301,7 +301,7 @@ pub export fn print_zoom(vmap: [*c]view_map_t) void {
     _ = refresh();
 }
 
-pub export fn print_xzoom(vmap: [*c]view_map_t) void {
+pub fn print_xzoom(vmap: [*c]view_map_t) void {
     print_zoom(vmap);
 }
 
@@ -346,7 +346,7 @@ fn print_pzoom_cell(pmap: [*c]path_map_t, vmap: [*c]view_map_t, row: c_int, col:
     }
 }
 
-pub export fn print_pzoom(s: [*c]const u8, pmap: [*c]path_map_t, vmap: [*c]view_map_t) void {
+pub fn print_pzoom(s: [*c]const u8, pmap: [*c]path_map_t, vmap: [*c]view_map_t) void {
     kill_display();
 
     const row_inc = @divTrunc(MAP_HEIGHT + globals.lines - NUMTOPS - 1, globals.lines - NUMTOPS);
@@ -365,17 +365,17 @@ pub export fn print_pzoom(s: [*c]const u8, pmap: [*c]path_map_t, vmap: [*c]view_
     _ = refresh();
 }
 
-pub export fn display_score() void {
+pub fn display_score() void {
     pos_str(1, globals.cols - 12, " User  Comp");
     pos_str(2, globals.cols - 12, "%5d %5d", globals.user_score, globals.comp_score);
 }
 
-pub export fn clreol(linep: c_int, colp: c_int) void {
+pub fn clreol(linep: c_int, colp: c_int) void {
     _ = move(linep, colp);
     _ = clrtoeol();
 }
 
-pub export fn ttinit() void {
+pub fn ttinit() void {
     _ = initscr();
     _ = noecho();
     _ = cbreak();
@@ -386,26 +386,26 @@ pub export fn ttinit() void {
     if (globals.cols > MAP_WIDTH + NUMSIDES) globals.cols = MAP_WIDTH + NUMSIDES;
 }
 
-pub export fn clear_screen() void {
+pub fn clear_screen() void {
     _ = clear();
     _ = refresh();
     kill_display();
 }
 
-pub export fn complain() void {
+pub fn complain() void {
     _ = beep();
 }
 
-pub export fn redisplay() void {
+pub fn redisplay() void {
     _ = refresh();
 }
 
-pub export fn redraw() void {
+pub fn redraw() void {
     _ = clearok(curscr, true);
     _ = refresh();
 }
 
-pub export fn delay() void {
+pub fn delay() void {
     var t = globals.delay_time;
     const i: c_int = 500;
     _ = refresh();
@@ -421,14 +421,14 @@ pub export fn delay() void {
     }
 }
 
-pub export fn close_disp() void {
+pub fn close_disp() void {
     _ = move(LINES - 1, 0);
     _ = clrtoeol();
     _ = refresh();
     _ = endwin();
 }
 
-pub export fn pos_str(row: c_int, col: c_int, str: [*c]const u8, ...) void {
+pub fn pos_str(row: c_int, col: c_int, str: [*c]const u8, ...) callconv(.c) void {
     var ap = @cVaStart();
     defer @cVaEnd(&ap);
     var junkbuf: [STRSIZE]u8 = undefined;
@@ -437,7 +437,7 @@ pub export fn pos_str(row: c_int, col: c_int, str: [*c]const u8, ...) void {
     _ = addstr(&junkbuf);
 }
 
-pub export fn print_movie_cell(mbuf: [*c]u8, row: c_int, col: c_int, row_inc: c_int, col_inc: c_int) void {
+pub fn print_movie_cell(mbuf: [*c]u8, row: c_int, col: c_int, row_inc: c_int, col_inc: c_int) void {
     var cell: u8 = ' ';
     var r = row;
     while (r < row + row_inc) : (r += 1) {

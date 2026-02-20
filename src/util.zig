@@ -2,15 +2,15 @@ const globals = @import("globals.zig");
 const types = @import("types.zig");
 const std = @import("std");
 
-extern fn close_disp() void;
+const display = @import("display.zig");
 
-pub export fn empend() void {
-    close_disp();
+pub fn empend() void {
+    display.close_disp();
     std.c.exit(0);
 }
 
-pub export fn assert(expression: [*c]const u8, file: [*c]const u8, line: c_int) void {
-    close_disp();
+pub fn assert(expression: [*c]const u8, file: [*c]const u8, line: c_int) void {
+    display.close_disp();
     std.debug.print("assert failed: file {s} line {d}: {s}\n", .{ file, line, expression });
     std.posix.raise(std.posix.SIG.SEGV) catch {};
 }
@@ -34,7 +34,7 @@ fn objIndex(p: Ptr) usize {
     return (@intFromPtr(p) - @intFromPtr(&globals.object)) / @sizeOf(types.piece_info_t);
 }
 
-pub export fn check() void {
+pub fn check() void {
     var in_free = [_]bool{false} ** LIST_SIZE;
     var in_obj = [_]bool{false} ** LIST_SIZE;
     var in_loc = [_]bool{false} ** LIST_SIZE;

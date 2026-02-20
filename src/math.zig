@@ -4,17 +4,17 @@ const util = @import("util.zig");
 
 var rng: std.Random.DefaultPrng = undefined;
 
-pub export fn rndini() void {
+pub fn rndini() void {
     const seed: u64 = @bitCast(std.time.timestamp());
     rng = std.Random.DefaultPrng.init(seed);
 }
 
-pub export fn irand(high: c_long) c_long {
+pub fn irand(high: c_long) c_long {
     if (high < 2) return 0;
     return @intCast(rng.random().uintLessThan(u64, @intCast(high)));
 }
 
-pub export fn dist(a: c_long, b: c_long) c_int {
+pub fn dist(a: c_long, b: c_long) c_int {
     const ax = util.loc_row(a);
     const ay = util.loc_col(a);
     const bx = util.loc_row(b);
@@ -23,7 +23,7 @@ pub export fn dist(a: c_long, b: c_long) c_int {
     return @intCast(@max(@abs(ax - bx), @abs(ay - by)));
 }
 
-pub export fn isqrt(n: c_int) c_int {
+pub fn isqrt(n: c_int) c_int {
     std.debug.assert(n >= 0);
 
     if (n <= 1) return n;

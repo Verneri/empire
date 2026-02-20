@@ -28,9 +28,6 @@ extern fn getch() c_int;
 extern fn getnstr(buf: [*c]u8, n: c_int) c_int;
 extern var LINES: c_int;
 
-// display.c externs
-extern fn delay() void;
-
 // State
 var need_delay: bool = false;
 
@@ -51,73 +48,73 @@ fn vtopmsg(line: c_int, fmt: [*c]const u8, ap: *VaList) void {
 
 // Exported variadic functions
 
-pub export fn topmsg(line: c_int, fmt: [*c]const u8, ...) void {
+pub fn topmsg(line: c_int, fmt: [*c]const u8, ...) callconv(.c) void {
     var ap = @cVaStart();
     defer @cVaEnd(&ap);
     vtopmsg(line, fmt, &ap);
 }
 
-pub export fn prompt(fmt: [*c]const u8, ...) void {
+pub fn prompt(fmt: [*c]const u8, ...) callconv(.c) void {
     var ap = @cVaStart();
     defer @cVaEnd(&ap);
     vtopmsg(1, fmt, &ap);
 }
 
-pub export fn @"error"(fmt: [*c]const u8, ...) void {
+pub fn @"error"(fmt: [*c]const u8, ...) callconv(.c) void {
     var ap = @cVaStart();
     defer @cVaEnd(&ap);
     vtopmsg(2, fmt, &ap);
 }
 
-pub export fn extra(fmt: [*c]const u8, ...) void {
+pub fn extra(fmt: [*c]const u8, ...) callconv(.c) void {
     var ap = @cVaStart();
     defer @cVaEnd(&ap);
     vtopmsg(3, fmt, &ap);
 }
 
-pub export fn huh() void {
+pub fn huh() void {
     writeTopmsg(2, "Type H for Help.");
 }
 
-pub export fn info(a: [*c]const u8, b: [*c]const u8, c_str: [*c]const u8) void {
-    if (need_delay) delay();
+pub fn info(a: [*c]const u8, b: [*c]const u8, c_str: [*c]const u8) void {
+    if (need_delay) display.delay();
     writeTopmsg(1, a);
     writeTopmsg(2, b);
     writeTopmsg(3, c_str);
     need_delay = (a != null or b != null or c_str != null);
 }
 
-pub export fn set_need_delay() void {
+pub fn set_need_delay() void {
     need_delay = true;
 }
 
-pub export fn topini() void {
+pub fn topini() void {
     info("", "", "");
 }
 
-pub export fn comment(fmt: [*c]const u8, ...) void {
+pub fn comment(fmt: [*c]const u8, ...) callconv(.c) void {
     var ap = @cVaStart();
     defer @cVaEnd(&ap);
-    if (need_delay) delay();
+    if (need_delay) display.delay();
     writeTopmsg(1, "");
     writeTopmsg(2, "");
     vtopmsg(3, fmt, &ap);
     need_delay = (fmt != null);
 }
 
-pub export fn pdebug(fmt: [*c]const u8, ...) void {
+pub fn pdebug(fmt: [*c]const u8, ...) callconv(.c) void {
     if (!globals.print_debug) return;
 
     var ap = @cVaStart();
     defer @cVaEnd(&ap);
-    if (need_delay) delay();
+    if (need_delay) display.delay();
     writeTopmsg(1, "");
     writeTopmsg(2, "");
     vtopmsg(3, fmt, &ap);
     need_delay = (fmt != null);
 }
 
-pub export fn ksend(fmt: [*c]const u8, ...) void {
+pub fn ksend(fmt: [*c]const u8, ...) callconv(.c) void {
     var ap = @cVaStart();
     defer @cVaEnd(&ap);
     var junkbuf: [STRSIZE]u8 = undefined;
@@ -132,13 +129,13 @@ pub export fn ksend(fmt: [*c]const u8, ...) void {
 
 // Input functions
 
-pub export fn get_str(buf: [*c]u8, sizep: c_int) void {
+pub fn get_str(buf: [*c]u8, sizep: c_int) void {
     _ = echo();
     get_strq(buf, sizep);
     _ = noecho();
 }
 
-export fn get_strq(buf: [*c]u8, sizep: c_int) void {
+fn get_strq(buf: [*c]u8, sizep: c_int) void {
     _ = nocbreak();
     _ = refresh();
     _ = getnstr(buf, sizep);
@@ -147,7 +144,7 @@ export fn get_strq(buf: [*c]u8, sizep: c_int) void {
     _ = cbreak();
 }
 
-pub export fn get_chx() u8 {
+pub fn get_chx() u8 {
     const ch = get_cq();
     if (ch >= 'a' and ch <= 'z') {
         return ch - 'a' + 'A';
@@ -155,7 +152,7 @@ pub export fn get_chx() u8 {
     return ch;
 }
 
-pub export fn getint(message: [*c]const u8) c_int {
+pub fn getint(message: [*c]const u8) c_int {
     while (true) {
         prompt(message);
         var buf: [STRSIZE]u8 = undefined;
@@ -180,7 +177,7 @@ pub export fn getint(message: [*c]const u8) c_int {
     }
 }
 
-export fn get_c() u8 {
+fn get_c() u8 {
     _ = echo();
     const ch = get_cq();
     _ = noecho();
@@ -196,7 +193,7 @@ fn get_cq() u8 {
     return ch;
 }
 
-pub export fn getyn(message: [*c]const u8) bool {
+pub fn getyn(message: [*c]const u8) bool {
     while (true) {
         prompt(message);
         const ch = get_chx();
@@ -206,7 +203,7 @@ pub export fn getyn(message: [*c]const u8) bool {
     }
 }
 
-pub export fn get_range(message: [*c]const u8, low: c_int, high: c_int) c_int {
+pub fn get_range(message: [*c]const u8, low: c_int, high: c_int) c_int {
     while (true) {
         const result = getint(message);
         if (result >= low and result <= high) return result;
@@ -216,7 +213,7 @@ pub export fn get_range(message: [*c]const u8, low: c_int, high: c_int) c_int {
 
 // Help screen
 
-pub export fn help(text: [*c][*c]const u8, nlines: c_int) void {
+pub fn help(text: [*c][*c]const u8, nlines: c_int) void {
     const text_lines = @divTrunc(nlines + 1, 2);
 
     display.clear_screen();
@@ -269,7 +266,7 @@ pub export fn help(text: [*c][*c]const u8, nlines: c_int) void {
 
 const COL_DIGITS: c_int = if (globals.MAP_WIDTH <= 100) 2 else if (globals.MAP_WIDTH <= 1000) 3 else unreachable;
 
-pub export fn loc_disp(loc: c_int) c_int {
+pub fn loc_disp(loc: c_int) c_int {
     const row = @divTrunc(loc, globals.MAP_WIDTH);
     var nrow = row;
     const col = @rem(loc, globals.MAP_WIDTH);

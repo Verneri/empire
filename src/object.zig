@@ -44,11 +44,9 @@ const MAP_CITY = data.MAP_CITY;
 // ncurses
 extern fn refresh() c_int;
 
-// display.c
-extern fn display_locx(whose: c_int, vmap: [*c]view_map_t, loc: c_long) void;
 
 const sat_dir = [4]c_long{ MOVE_NW, MOVE_SW, MOVE_NE, MOVE_SE };
-pub export var city_char: [3]u8 = .{ MAP_CITY, 'O', 'X' };
+pub var city_char: [3]u8 = .{ MAP_CITY, 'O', 'X' };
 
 fn funci(x: c_long) usize {
     return @intCast(-x - 1);
@@ -105,7 +103,7 @@ fn unlink(head: *[*c]piece_info_t, obj: *piece_info_t, comptime field: LinkField
 
 // Public API
 
-pub export fn find_nearest_city(loc: c_long, owner: c_int, city_loc: [*c]c_long) c_int {
+pub fn find_nearest_city(loc: c_long, owner: c_int, city_loc: [*c]c_long) c_int {
     var best_loc: c_long = loc;
     var best_dist: c_long = INFINITY;
 
@@ -122,17 +120,17 @@ pub export fn find_nearest_city(loc: c_long, owner: c_int, city_loc: [*c]c_long)
     return @intCast(best_dist);
 }
 
-pub export fn find_city(loc: c_long) [*c]city_info_t {
+pub fn find_city(loc: c_long) [*c]city_info_t {
     return globals.map[@intCast(loc)].cityp;
 }
 
-pub export fn obj_moves(obj: [*c]piece_info_t) c_int {
+pub fn obj_moves(obj: [*c]piece_info_t) c_int {
     const t: usize = @intCast(obj.*.type);
     return @divTrunc(@as(c_int, data.piece_attr[t].speed) * obj.*.hits +
         @as(c_int, data.piece_attr[t].max_hits) - 1, @as(c_int, data.piece_attr[t].max_hits));
 }
 
-pub export fn obj_capacity(obj: [*c]piece_info_t) c_int {
+pub fn obj_capacity(obj: [*c]piece_info_t) c_int {
     const t: usize = @intCast(obj.*.type);
     return @divTrunc(@as(c_int, data.piece_attr[t].capacity) * obj.*.hits +
         @as(c_int, data.piece_attr[t].max_hits) - 1, @as(c_int, data.piece_attr[t].max_hits));
@@ -146,7 +144,7 @@ pub fn capacity(obj: *piece_info_t) c_int {
     return obj_capacity(obj);
 }
 
-pub export fn find_obj(@"type": c_int, loc: c_long) [*c]piece_info_t {
+pub fn find_obj(@"type": c_int, loc: c_long) [*c]piece_info_t {
     var p: [*c]piece_info_t = globals.map[@intCast(loc)].objp;
     while (p != null) : (p = @ptrCast(p.*.loc_link.next)) {
         if (p.*.type == @"type") return p;
@@ -154,7 +152,7 @@ pub export fn find_obj(@"type": c_int, loc: c_long) [*c]piece_info_t {
     return null;
 }
 
-pub export fn find_nfull(@"type": c_int, loc: c_long) [*c]piece_info_t {
+pub fn find_nfull(@"type": c_int, loc: c_long) [*c]piece_info_t {
     var p: [*c]piece_info_t = globals.map[@intCast(loc)].objp;
     while (p != null) : (p = @ptrCast(p.*.loc_link.next)) {
         if (p.*.type == @"type") {
@@ -164,7 +162,7 @@ pub export fn find_nfull(@"type": c_int, loc: c_long) [*c]piece_info_t {
     return null;
 }
 
-pub export fn find_transport(owner: c_int, loc: c_long) c_long {
+pub fn find_transport(owner: c_int, loc: c_long) c_long {
     for (0..8) |i| {
         const new_loc = loc + data.dir_offset[i];
         const t = find_nfull(TRANSPORT, new_loc);
@@ -173,7 +171,7 @@ pub export fn find_transport(owner: c_int, loc: c_long) c_long {
     return loc;
 }
 
-pub export fn find_obj_at_loc(loc: c_long) [*c]piece_info_t {
+pub fn find_obj_at_loc(loc: c_long) [*c]piece_info_t {
     var best: [*c]piece_info_t = globals.map[@intCast(loc)].objp;
     if (best == null) return null;
 
@@ -184,7 +182,7 @@ pub export fn find_obj_at_loc(loc: c_long) [*c]piece_info_t {
     return best;
 }
 
-pub export fn disembark(obj: *piece_info_t) void {
+pub fn disembark(obj: *piece_info_t) void {
     if (obj.ship != null) {
         const ship: *piece_info_t = @ptrCast(obj.ship);
         unlink(&ship.cargo, obj, .cargo_link);
@@ -193,13 +191,13 @@ pub export fn disembark(obj: *piece_info_t) void {
     }
 }
 
-pub export fn embark(ship: *piece_info_t, obj: *piece_info_t) void {
+pub fn embark(ship: *piece_info_t, obj: *piece_info_t) void {
     obj.ship = ship;
     link(&ship.cargo, obj, .cargo_link);
     ship.count += 1;
 }
 
-pub export fn kill_obj(obj: [*c]piece_info_t, loc: c_long) void {
+pub fn kill_obj(obj: [*c]piece_info_t, loc: c_long) void {
     const o: *piece_info_t = @ptrCast(obj);
     const vmap = ownerMap(o.owner);
     const list = ownerList(o.owner);
@@ -223,7 +221,7 @@ fn kill_one(list: *[NUM_OBJECTS][*c]piece_info_t, obj: *piece_info_t) void {
     obj.moved = data.piece_attr[t].speed;
 }
 
-pub export fn kill_city(cityp: [*c]city_info_t) void {
+pub fn kill_city(cityp: [*c]city_info_t) void {
     var p: [*c]piece_info_t = globals.map[@intCast(cityp.*.loc)].objp;
     while (p != null) {
         const next_p: [*c]piece_info_t = @ptrCast(p.*.loc_link.next);
@@ -264,7 +262,7 @@ pub export fn kill_city(cityp: [*c]city_info_t) void {
     }
 }
 
-pub export fn produce(cityp: [*c]city_info_t) void {
+pub fn produce(cityp: [*c]city_info_t) void {
     const list = ownerList(@intCast(cityp.*.owner));
     const prod: usize = @intCast(cityp.*.prod);
 
@@ -294,7 +292,7 @@ pub export fn produce(cityp: [*c]city_info_t) void {
     }
 }
 
-pub export fn move_obj(obj: [*c]piece_info_t, new_loc: c_long) void {
+pub fn move_obj(obj: [*c]piece_info_t, new_loc: c_long) void {
     const o: *piece_info_t = @ptrCast(obj);
     std.debug.assert(o.hits > 0);
     const vmap = ownerMap(o.owner);
@@ -368,7 +366,7 @@ fn move_sat1(obj: *piece_info_t) void {
     move_obj(obj, new_loc);
 }
 
-pub export fn move_sat(obj: [*c]piece_info_t) void {
+pub fn move_sat(obj: [*c]piece_info_t) void {
     const o: *piece_info_t = @ptrCast(obj);
     o.moved = 0;
 
@@ -384,7 +382,7 @@ pub export fn move_sat(obj: [*c]piece_info_t) void {
     }
 }
 
-pub export fn good_loc(obj: [*c]piece_info_t, loc: c_long) bool {
+pub fn good_loc(obj: [*c]piece_info_t, loc: c_long) bool {
     const uloc: usize = @intCast(loc);
     if (!globals.map[uloc].on_board) return false;
 
@@ -418,7 +416,7 @@ pub export fn good_loc(obj: [*c]piece_info_t, loc: c_long) bool {
     return false;
 }
 
-pub export fn describe_obj(obj: [*c]piece_info_t) void {
+pub fn describe_obj(obj: [*c]piece_info_t) void {
     var func_buf: [STRSIZE]u8 = undefined;
     var other: [STRSIZE]u8 = undefined;
 
@@ -451,7 +449,7 @@ pub export fn describe_obj(obj: [*c]piece_info_t) void {
     );
 }
 
-pub export fn scan(vmap: [*c]view_map_t, loc: c_long) void {
+pub fn scan(vmap: [*c]view_map_t, loc: c_long) void {
     std.debug.assert(globals.map[@intCast(loc)].on_board);
 
     for (0..8) |i| {
@@ -490,12 +488,12 @@ fn update(vmap: [*c]view_map_t, loc: c_long) void {
     }
 
     if (vmap == @as([*c]view_map_t, &globals.comp_map))
-        display_locx(COMP, &globals.comp_map, loc)
+        display.display_locx(COMP, &globals.comp_map, loc)
     else if (vmap == @as([*c]view_map_t, &globals.user_map))
-        display_locx(USER, &globals.user_map, loc);
+        display.display_locx(USER, &globals.user_map, loc);
 }
 
-pub export fn set_prod(cityp: [*c]city_info_t) void {
+pub fn set_prod(cityp: [*c]city_info_t) void {
     scan(&globals.user_map, cityp.*.loc);
     display.display_loc_u(cityp.*.loc);
 
@@ -515,7 +513,7 @@ pub export fn set_prod(cityp: [*c]city_info_t) void {
     }
 }
 
-pub export fn get_piece_name() c_int {
+pub fn get_piece_name() c_int {
     const ch = terminal.get_chx();
 
     for (0..NUM_OBJECTS) |i| {

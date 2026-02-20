@@ -97,7 +97,7 @@ pub fn save() void {
 
 // Game initialization
 
-pub export fn init_game() void {
+pub fn init_game() void {
     display.kill_display();
     globals.automove = false;
     globals.resigned = false;
@@ -423,7 +423,7 @@ fn xread(f: *c.FILE, buf: [*]u8, size: usize) bool {
     return true;
 }
 
-pub export fn save_game() void {
+pub fn save_game() void {
     const f = c.fopen(globals.savefile, "w") orelse {
         c.perror("Cannot save saved game");
         return;
@@ -548,7 +548,7 @@ fn inconsistent() void {
 
 // Movie
 
-pub export fn save_movie_screen() void {
+pub fn save_movie_screen() void {
     const f = c.fopen("empmovie.dat", "a") orelse {
         c.perror("Cannot open empmovie.dat");
         return;
@@ -576,7 +576,7 @@ pub fn replay_movie() void {
     replay_movie_impl();
 }
 
-pub export fn replay_movie_c() void {
+pub fn replay_movie_c() void {
     replay_movie_impl();
 }
 

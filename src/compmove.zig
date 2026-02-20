@@ -74,7 +74,7 @@ fn char_in(c: u8, set: [*c]const u8) ?usize {
 // Main entry point
 // ============================================================
 
-pub export fn comp_move(nmoves: c_int) void {
+pub fn comp_move(nmoves: c_int) void {
     var i: c_int = undefined;
     var obj: [*c]piece_info_t = undefined;
 

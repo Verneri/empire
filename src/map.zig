@@ -73,12 +73,12 @@ fn char_in(c: u8, set: [*c]const u8) ?usize {
 // Continent mapping
 // ============================================================
 
-pub export fn vmap_cont(cont_map: [*c]c_int, vmap: [*c]view_map_t, loc: c_long, bad_terrain: u8) void {
+pub fn vmap_cont(cont_map: [*c]c_int, vmap: [*c]view_map_t, loc: c_long, bad_terrain: u8) void {
     @memset(cont_map[0..@intCast(MAP_SIZE)], 0);
     vmap_mark_up_cont(cont_map, vmap, loc, bad_terrain);
 }
 
-pub export fn vmap_mark_up_cont(cont_map: [*c]c_int, vmap: [*c]view_map_t, loc: c_long, bad_terrain: u8) void {
+pub fn vmap_mark_up_cont(cont_map: [*c]c_int, vmap: [*c]view_map_t, loc: c_long, bad_terrain: u8) void {
     var from: *perimeter_t = &p1;
     var to: *perimeter_t = &p2;
 
@@ -121,7 +121,7 @@ pub export fn vmap_mark_up_cont(cont_map: [*c]c_int, vmap: [*c]view_map_t, loc: 
     }
 }
 
-pub export fn rmap_cont(cont_map: [*c]c_int, loc: c_long, bad_terrain: u8) void {
+pub fn rmap_cont(cont_map: [*c]c_int, loc: c_long, bad_terrain: u8) void {
     @memset(cont_map[0..@intCast(MAP_SIZE)], 0);
     rmap_mark_up_cont(cont_map, loc, bad_terrain);
 }
@@ -143,7 +143,7 @@ fn rmap_mark_up_cont(cont_map: [*c]c_int, loc: c_long, bad_terrain: u8) void {
 // Continent scanning
 // ============================================================
 
-pub export fn vmap_cont_scan(cont_map: [*c]c_int, vmap: [*c]view_map_t) scan_counts_t {
+pub fn vmap_cont_scan(cont_map: [*c]c_int, vmap: [*c]view_map_t) scan_counts_t {
     var counts: scan_counts_t = std.mem.zeroes(scan_counts_t);
 
     for (0..@intCast(MAP_SIZE)) |i| {
@@ -191,7 +191,7 @@ pub export fn vmap_cont_scan(cont_map: [*c]c_int, vmap: [*c]view_map_t) scan_cou
     return counts;
 }
 
-pub export fn rmap_cont_scan(cont_map: [*c]c_int) scan_counts_t {
+pub fn rmap_cont_scan(cont_map: [*c]c_int) scan_counts_t {
     var counts: scan_counts_t = std.mem.zeroes(scan_counts_t);
 
     for (0..@intCast(MAP_SIZE)) |i| {
@@ -203,7 +203,7 @@ pub export fn rmap_cont_scan(cont_map: [*c]c_int) scan_counts_t {
     return counts;
 }
 
-pub export fn map_cont_edge(cont_map: [*c]c_int, loc: c_long) bool {
+pub fn map_cont_edge(cont_map: [*c]c_int, loc: c_long) bool {
     if (cont_map[@intCast(loc)] == 0) return false;
 
     for (data.dir_offset[0..8]) |offset| {
@@ -347,7 +347,7 @@ fn expand_perimeter(
 // Path finding - find objectives
 // ============================================================
 
-pub export fn vmap_find_xobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, move_info: [*c]move_info_t, start: c_int, expand: c_int) c_long {
+pub fn vmap_find_xobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, move_info: [*c]move_info_t, start: c_int, expand: c_int) c_long {
     var from: *perimeter_t = &p1;
     var to: *perimeter_t = &p2;
 
@@ -369,19 +369,19 @@ pub export fn vmap_find_xobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t,
     }
 }
 
-pub export fn vmap_find_aobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, move_info: [*c]move_info_t) c_long {
+pub fn vmap_find_aobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, move_info: [*c]move_info_t) c_long {
     return vmap_find_xobj(path_map_arg, vmap, loc, move_info, T_LAND, T_AIR);
 }
 
-pub export fn vmap_find_wobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, move_info: [*c]move_info_t) c_long {
+pub fn vmap_find_wobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, move_info: [*c]move_info_t) c_long {
     return vmap_find_xobj(path_map_arg, vmap, loc, move_info, T_WATER, T_WATER);
 }
 
-pub export fn vmap_find_lobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, move_info: [*c]move_info_t) c_long {
+pub fn vmap_find_lobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, move_info: [*c]move_info_t) c_long {
     return vmap_find_xobj(path_map_arg, vmap, loc, move_info, T_LAND, T_LAND);
 }
 
-pub export fn vmap_find_lwobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, move_info: [*c]move_info_t, beat_cost: c_int) c_long {
+pub fn vmap_find_lwobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, move_info: [*c]move_info_t, beat_cost: c_int) c_long {
     var cur_land: *perimeter_t = &p1;
     var cur_water: *perimeter_t = &p2;
     var new_water: *perimeter_t = &p3;
@@ -414,7 +414,7 @@ pub export fn vmap_find_lwobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t
     }
 }
 
-pub export fn vmap_find_wlobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, move_info: [*c]move_info_t) c_long {
+pub fn vmap_find_wlobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, move_info: [*c]move_info_t) c_long {
     var cur_land: *perimeter_t = &p1;
     var cur_water: *perimeter_t = &p2;
     var new_water: *perimeter_t = &p3;
@@ -450,7 +450,7 @@ pub export fn vmap_find_wlobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t
 // Find destination (shortest path to known location)
 // ============================================================
 
-pub export fn vmap_find_dest(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, cur_loc: c_long, dest_loc: c_long, owner: c_int, terrain: c_int) c_long {
+pub fn vmap_find_dest(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, cur_loc: c_long, dest_loc: c_long, owner: c_int, terrain: c_int) c_long {
     const du: usize = @intCast(dest_loc);
     const old_contents = vmap[du].contents;
     vmap[du].contents = '%'; // mark objective
@@ -486,7 +486,7 @@ pub export fn vmap_find_dest(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t,
 // Path marking
 // ============================================================
 
-pub export fn vmap_mark_path(pmap: [*c]path_map_t, vmap: [*c]view_map_t, dest: c_long) void {
+pub fn vmap_mark_path(pmap: [*c]path_map_t, vmap: [*c]view_map_t, dest: c_long) void {
     const du: usize = @intCast(dest);
 
     if (pmap[du].cost == 0) return;
@@ -502,7 +502,7 @@ pub export fn vmap_mark_path(pmap: [*c]path_map_t, vmap: [*c]view_map_t, dest: c
     }
 }
 
-pub export fn vmap_mark_adjacent(pmap: [*c]path_map_t, loc: c_long) void {
+pub fn vmap_mark_adjacent(pmap: [*c]path_map_t, loc: c_long) void {
     for (data.dir_offset[0..8]) |offset| {
         const new_loc: c_long = loc + @as(c_long, offset);
         const nu: usize = @intCast(new_loc);
@@ -511,7 +511,7 @@ pub export fn vmap_mark_adjacent(pmap: [*c]path_map_t, loc: c_long) void {
     }
 }
 
-pub export fn vmap_mark_near_path(pmap: [*c]path_map_t, loc: c_long) void {
+pub fn vmap_mark_near_path(pmap: [*c]path_map_t, loc: c_long) void {
     var hit_loc = [_]c_int{0} ** 8;
 
     for (0..8) |i| {
@@ -540,7 +540,7 @@ pub export fn vmap_mark_near_path(pmap: [*c]path_map_t, loc: c_long) void {
 // Direction finding
 // ============================================================
 
-pub export fn vmap_find_dir(pmap: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, terrain: [*c]const u8, adj_char: [*c]const u8) c_long {
+pub fn vmap_find_dir(pmap: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, terrain: [*c]const u8, adj_char: [*c]const u8) c_long {
     if (globals.trace_pmap) display.print_pzoom("Before vmap_find_dir:", pmap, vmap);
 
     var bestcount: c_int = -INFINITY;
@@ -568,7 +568,7 @@ pub export fn vmap_find_dir(pmap: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_l
     return bestloc;
 }
 
-pub export fn vmap_count_adjacent(vmap: [*c]view_map_t, loc: c_long, adj_char: [*c]const u8) c_int {
+pub fn vmap_count_adjacent(vmap: [*c]view_map_t, loc: c_long, adj_char: [*c]const u8) c_int {
     // compute length of adj_char
     var len: c_int = 0;
     while (adj_char[@intCast(len)] != 0) : (len += 1) {}
@@ -603,7 +603,7 @@ fn vmap_count_path(pmap: [*c]path_map_t, loc: c_long) c_int {
 // Explore location pruning
 // ============================================================
 
-pub export fn vmap_prune_explore_locs(vmap: [*c]view_map_t) void {
+pub fn vmap_prune_explore_locs(vmap: [*c]view_map_t) void {
     var pmap: [MAP_SIZE]path_map_t = std.mem.zeroes([MAP_SIZE]path_map_t);
     var from: *perimeter_t = &p1;
     var to: *perimeter_t = &p2;
@@ -765,7 +765,7 @@ fn expand_prune(vmap: [*c]view_map_t, pmap: *[MAP_SIZE]path_map_t, loc: c_long, 
 // Shore and sea tests
 // ============================================================
 
-pub export fn rmap_shore(loc: c_long) bool {
+pub fn rmap_shore(loc: c_long) bool {
     for (data.dir_offset[0..8]) |offset| {
         const new_loc: c_long = loc + @as(c_long, offset);
         const nu: usize = @intCast(new_loc);
@@ -775,7 +775,7 @@ pub export fn rmap_shore(loc: c_long) bool {
     return false;
 }
 
-pub export fn vmap_shore(vmap: [*c]view_map_t, loc: c_long) bool {
+pub fn vmap_shore(vmap: [*c]view_map_t, loc: c_long) bool {
     for (data.dir_offset[0..8]) |offset| {
         const new_loc: c_long = loc + @as(c_long, offset);
         const nu: usize = @intCast(new_loc);
@@ -787,7 +787,7 @@ pub export fn vmap_shore(vmap: [*c]view_map_t, loc: c_long) bool {
     return false;
 }
 
-pub export fn vmap_at_sea(vmap: [*c]view_map_t, loc: c_long) bool {
+pub fn vmap_at_sea(vmap: [*c]view_map_t, loc: c_long) bool {
     const uloc: usize = @intCast(loc);
     if (globals.map[uloc].contents != MAP_SEA) return false;
 
@@ -802,7 +802,7 @@ pub export fn vmap_at_sea(vmap: [*c]view_map_t, loc: c_long) bool {
     return true;
 }
 
-pub export fn rmap_at_sea(loc: c_long) bool {
+pub fn rmap_at_sea(loc: c_long) bool {
     const uloc: usize = @intCast(loc);
     if (globals.map[uloc].contents != MAP_SEA) return false;
 
