@@ -116,4 +116,3 @@ pub export var object: [LIST_SIZE]types.piece_info_t = std.mem.zeroes([LIST_SIZE
 pub export var lines: c_int = 0;
 pub export var cols: c_int = 0;
 pub export var jnkbuf: [STRSIZE]u8 = std.mem.zeroes([STRSIZE]u8);
-

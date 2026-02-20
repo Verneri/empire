@@ -68,7 +68,7 @@ fn ownerList(owner: c_int) *[NUM_OBJECTS][*c]piece_info_t {
 
 // Linked list operations (LINK/UNLINK macros from C)
 
-const LinkField = enum { piece_link, loc_link, cargo_link };
+pub const LinkField = enum { piece_link, loc_link, cargo_link };
 
 fn getLink(obj: *piece_info_t, comptime field: LinkField) *link_t {
     return switch (field) {
@@ -78,7 +78,7 @@ fn getLink(obj: *piece_info_t, comptime field: LinkField) *link_t {
     };
 }
 
-fn link(head: *[*c]piece_info_t, obj: *piece_info_t, comptime field: LinkField) void {
+pub fn link(head: *[*c]piece_info_t, obj: *piece_info_t, comptime field: LinkField) void {
     const lnk = getLink(obj, field);
     lnk.prev = null;
     lnk.next = @ptrCast(head.*);
