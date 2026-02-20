@@ -37,7 +37,6 @@ pub fn build(b: *std.Build) void {
             "edit.c",
             "game.c",
             "map.c",
-            "math.c",
             "object.c",
             "term.c",
             "usermove.c",
