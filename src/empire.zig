@@ -12,6 +12,10 @@ const data = @import("data.zig");
 const edit = @import("edit.zig");
 const util = @import("util.zig");
 const object = @import("object.zig");
+const attack = @import("attack.zig");
+comptime {
+    _ = &attack; // ensure attack exports are compiled for C callers
+}
 
 pub fn empire() void {
     var turn: u16 = 0;

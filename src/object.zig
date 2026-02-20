@@ -6,9 +6,12 @@ pub extern fn produce(cityp: [*c]types.city_info_t) void;
 pub extern fn move_sat(obj: [*c]piece_info_t) void;
 pub extern fn find_city(loc: c_long) [*c]types.city_info_t;
 pub extern fn find_nearest_city(loc: c_long, owner: c_int, city_loc: [*c]c_long) c_int;
+pub extern fn find_obj_at_loc(loc: c_long) [*c]piece_info_t;
 pub extern fn describe_obj(obj: [*c]piece_info_t) void;
 pub extern fn good_loc(obj: [*c]piece_info_t, loc: c_long) bool;
 pub extern fn move_obj(obj: [*c]piece_info_t, new_loc: c_long) void;
+pub extern fn kill_obj(obj: [*c]piece_info_t, loc: c_long) void;
+pub extern fn kill_city(cityp: [*c]types.city_info_t) void;
 pub extern fn find_transport(owner: c_int, loc: c_long) c_long;
 
 extern fn obj_capacity(obj: [*c]piece_info_t) c_int;

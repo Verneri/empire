@@ -30,7 +30,6 @@ pub fn build(b: *std.Build) void {
     empire.addCSourceFiles(.{
         .root = .{ .cwd_relative = "csrc" },
         .files = &.{
-            "attack.c",
             "compmove.c",
             "data.c",
             "display.c",
