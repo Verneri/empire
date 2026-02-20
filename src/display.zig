@@ -13,6 +13,8 @@ pub extern fn sector_change() void;
 pub extern fn display_loc(whose: c_int, vmap: [*c]types.view_map_t, loc: c_long) void;
 pub extern fn display_score() void;
 pub extern fn complain() void;
+pub extern fn move_cursor(cursor: [*c]c_long, offset: c_int) bool;
+pub extern fn direction(ch: c_uint) c_int;
 
 pub inline fn print_sector_u(sector: c_int) void {
     print_sector(@intFromEnum(globals.Ownership.User), &globals.user_map, sector);

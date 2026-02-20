@@ -13,6 +13,8 @@ pub extern fn move_obj(obj: [*c]piece_info_t, new_loc: c_long) void;
 pub extern fn kill_obj(obj: [*c]piece_info_t, loc: c_long) void;
 pub extern fn kill_city(cityp: [*c]types.city_info_t) void;
 pub extern fn find_transport(owner: c_int, loc: c_long) c_long;
+pub extern fn find_obj(@"type": c_int, loc: c_long) [*c]piece_info_t;
+pub extern fn get_piece_name() c_int;
 
 extern fn obj_capacity(obj: [*c]piece_info_t) c_int;
 extern fn obj_moves(obj: [*c]piece_info_t) c_int;

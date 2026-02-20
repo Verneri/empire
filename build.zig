@@ -32,7 +32,6 @@ pub fn build(b: *std.Build) void {
         .files = &.{
             "compmove.c",
             "display.c",
-            "edit.c",
             "game.c",
             "map.c",
             "object.c",
