@@ -1,19 +1,288 @@
-pub extern fn prompt(fmt: [*c]const u8, ...) void;
-pub extern fn get_chx() u8;
-pub extern fn @"error"(fmt: [*c]const u8, ...) void;
-pub extern fn huh() void;
-pub extern fn help(text: [*c][*c]const u8, nlines: c_int) void;
-pub extern fn getint(message: [*c]const u8) c_int;
-pub extern fn comment(fmt: [*c]const u8, ...) void;
-pub extern fn ksend(fmt: [*c]const u8, ...) void;
-pub extern fn topmsg(line: c_int, fmt: [*c]const u8, ...) void;
-pub extern fn extra(fmt: [*c]const u8, ...) void;
-pub extern fn set_need_delay() void;
-pub extern fn getyn(message: [*c]const u8) bool;
-pub extern fn get_range(message: [*c]const u8, low: c_int, high: c_int) c_int;
-pub extern fn get_str(buf: [*c]u8, sizep: c_int) void;
-pub extern fn loc_disp(loc: c_int) c_int;
-pub extern fn topini() void;
+const std = @import("std");
+const globals = @import("globals.zig");
+const data = @import("data.zig");
+const display = @import("display.zig");
+
+const c = @cImport({
+    @cInclude("stdio.h");
+    @cInclude("stdlib.h");
+});
+
+const NUMTOPS: c_int = 3;
+const STRSIZE = globals.STRSIZE;
+const VaList = std.builtin.VaList;
+
+// C library
+extern fn vsnprintf(buf: [*c]u8, size: c_ulong, fmt: [*c]const u8, ap: *VaList) c_int;
+
+// ncurses externs
+extern fn move(y: c_int, x: c_int) c_int;
+extern fn addstr(s: [*c]const u8) c_int;
+extern fn clrtoeol() c_int;
+extern fn refresh() c_int;
+extern fn echo() c_int;
+extern fn noecho() c_int;
+extern fn cbreak() c_int;
+extern fn nocbreak() c_int;
+extern fn getch() c_int;
+extern fn getnstr(buf: [*c]u8, n: c_int) c_int;
+extern var LINES: c_int;
+
+// display.c externs
+extern fn delay() void;
+
+// State
+var need_delay: bool = false;
+
+// Internal: write a pre-formatted string to a top line
+fn writeTopmsg(line: c_int, text: [*c]const u8) void {
+    var l = line;
+    if (l < 1 or l > NUMTOPS) l = 1;
+    _ = move(l - 1, 0);
+    _ = addstr(text);
+    _ = clrtoeol();
+}
+
+fn vtopmsg(line: c_int, fmt: [*c]const u8, ap: *VaList) void {
+    var junkbuf: [STRSIZE]u8 = undefined;
+    _ = vsnprintf(&junkbuf, STRSIZE, fmt, ap);
+    writeTopmsg(line, &junkbuf);
+}
+
+// Exported variadic functions
+
+pub export fn topmsg(line: c_int, fmt: [*c]const u8, ...) void {
+    var ap = @cVaStart();
+    defer @cVaEnd(&ap);
+    vtopmsg(line, fmt, &ap);
+}
+
+pub export fn prompt(fmt: [*c]const u8, ...) void {
+    var ap = @cVaStart();
+    defer @cVaEnd(&ap);
+    vtopmsg(1, fmt, &ap);
+}
+
+pub export fn @"error"(fmt: [*c]const u8, ...) void {
+    var ap = @cVaStart();
+    defer @cVaEnd(&ap);
+    vtopmsg(2, fmt, &ap);
+}
+
+pub export fn extra(fmt: [*c]const u8, ...) void {
+    var ap = @cVaStart();
+    defer @cVaEnd(&ap);
+    vtopmsg(3, fmt, &ap);
+}
+
+pub export fn huh() void {
+    writeTopmsg(2, "Type H for Help.");
+}
+
+pub export fn info(a: [*c]const u8, b: [*c]const u8, c_str: [*c]const u8) void {
+    if (need_delay) delay();
+    writeTopmsg(1, a);
+    writeTopmsg(2, b);
+    writeTopmsg(3, c_str);
+    need_delay = (a != null or b != null or c_str != null);
+}
+
+pub export fn set_need_delay() void {
+    need_delay = true;
+}
+
+pub export fn topini() void {
+    info("", "", "");
+}
+
+pub export fn comment(fmt: [*c]const u8, ...) void {
+    var ap = @cVaStart();
+    defer @cVaEnd(&ap);
+    if (need_delay) delay();
+    writeTopmsg(1, "");
+    writeTopmsg(2, "");
+    vtopmsg(3, fmt, &ap);
+    need_delay = (fmt != null);
+}
+
+pub export fn pdebug(fmt: [*c]const u8, ...) void {
+    if (!globals.print_debug) return;
+
+    var ap = @cVaStart();
+    defer @cVaEnd(&ap);
+    if (need_delay) delay();
+    writeTopmsg(1, "");
+    writeTopmsg(2, "");
+    vtopmsg(3, fmt, &ap);
+    need_delay = (fmt != null);
+}
+
+pub export fn ksend(fmt: [*c]const u8, ...) void {
+    var ap = @cVaStart();
+    defer @cVaEnd(&ap);
+    var junkbuf: [STRSIZE]u8 = undefined;
+    _ = vsnprintf(&junkbuf, STRSIZE, fmt, &ap);
+    const stream = c.fopen("info_list.txt", "a") orelse {
+        @"error"("Cannot open info_list.txt");
+        return;
+    };
+    _ = c.fputs(&junkbuf, stream);
+    _ = c.fclose(stream);
+}
+
+// Input functions
+
+pub export fn get_str(buf: [*c]u8, sizep: c_int) void {
+    _ = echo();
+    get_strq(buf, sizep);
+    _ = noecho();
+}
+
+export fn get_strq(buf: [*c]u8, sizep: c_int) void {
+    _ = nocbreak();
+    _ = refresh();
+    _ = getnstr(buf, sizep);
+    need_delay = false;
+    info("", "", "");
+    _ = cbreak();
+}
+
+pub export fn get_chx() u8 {
+    const ch = get_cq();
+    if (ch >= 'a' and ch <= 'z') {
+        return ch - 'a' + 'A';
+    }
+    return ch;
+}
+
+pub export fn getint(message: [*c]const u8) c_int {
+    while (true) {
+        prompt(message);
+        var buf: [STRSIZE]u8 = undefined;
+        get_str(&buf, STRSIZE);
+
+        var valid = true;
+        var len: usize = 0;
+        while (buf[len] != 0) : (len += 1) {
+            if (buf[len] < '0' or buf[len] > '9') {
+                @"error"("Please enter an integer.");
+                valid = false;
+                break;
+            }
+        }
+        if (valid) {
+            if (len > 7) {
+                @"error"("Please enter a small integer.");
+            } else {
+                return c.atoi(&buf);
+            }
+        }
+    }
+}
+
+export fn get_c() u8 {
+    _ = echo();
+    const ch = get_cq();
+    _ = noecho();
+    return ch;
+}
+
+fn get_cq() u8 {
+    _ = cbreak();
+    _ = refresh();
+    const ch: u8 = @truncate(@as(c_uint, @bitCast(getch())));
+    topini();
+    _ = nocbreak();
+    return ch;
+}
+
+pub export fn getyn(message: [*c]const u8) bool {
+    while (true) {
+        prompt(message);
+        const ch = get_chx();
+        if (ch == 'Y') return true;
+        if (ch == 'N') return false;
+        @"error"("Please answer Y or N.");
+    }
+}
+
+pub export fn get_range(message: [*c]const u8, low: c_int, high: c_int) c_int {
+    while (true) {
+        const result = getint(message);
+        if (result >= low and result <= high) return result;
+        @"error"("Please enter an integer in the range %d..%d.", low, high);
+    }
+}
+
+// Help screen
+
+pub export fn help(text: [*c][*c]const u8, nlines: c_int) void {
+    const text_lines = @divTrunc(nlines + 1, 2);
+
+    display.clear_screen();
+
+    display.pos_str(NUMTOPS, 1, text[0]);
+    display.pos_str(NUMTOPS, 41, "See empire(6) for more information.");
+
+    var i: c_int = 1;
+    while (i < nlines) : (i += 1) {
+        if (i > text_lines) {
+            display.pos_str(i - text_lines + NUMTOPS + 1, 41, text[@intCast(i)]);
+        } else {
+            display.pos_str(i + NUMTOPS + 1, 1, text[@intCast(i)]);
+        }
+    }
+
+    display.pos_str(text_lines + NUMTOPS + 2, 1, "--Piece---Yours-Enemy-Moves-Hits-Cost");
+    display.pos_str(text_lines + NUMTOPS + 2, 41, "--Piece---Yours-Enemy-Moves-Hits-Cost");
+
+    const num_objects: c_int = globals.NUM_OBJECTS;
+    i = 0;
+    while (i < num_objects) : (i += 1) {
+        var r: c_int = undefined;
+        var col: c_int = undefined;
+        if (i >= @divTrunc(num_objects + 1, 2)) {
+            r = i - @divTrunc(num_objects + 1, 2);
+            col = 41;
+        } else {
+            r = i;
+            col = 1;
+        }
+        const idx: usize = @intCast(i);
+        const sname = data.piece_attr[idx].sname;
+        display.pos_str(
+            r + text_lines + NUMTOPS + 3,
+            col,
+            "%-12s%c     %c%6d%5d%6d",
+            @as([*c]const u8, &data.piece_attr[idx].nickname),
+            @as(c_int, sname),
+            @as(c_int, sname | 0x20),
+            @as(c_int, data.piece_attr[idx].speed),
+            @as(c_int, data.piece_attr[idx].max_hits),
+            @as(c_int, data.piece_attr[idx].build_time),
+        );
+    }
+    _ = refresh();
+}
+
+// Location display
+
+const COL_DIGITS: c_int = if (globals.MAP_WIDTH <= 100) 2 else if (globals.MAP_WIDTH <= 1000) 3 else unreachable;
+
+pub export fn loc_disp(loc: c_int) c_int {
+    const row = @divTrunc(loc, globals.MAP_WIDTH);
+    var nrow = row;
+    const col = @rem(loc, globals.MAP_WIDTH);
+    std.debug.assert(loc == row * globals.MAP_WIDTH + col);
+    var i: c_int = COL_DIGITS;
+    while (i > 0) : (i -= 1) {
+        nrow *= 10;
+    }
+    _ = move(LINES - 1, 0);
+    return nrow + col;
+}
+
+// Zig-friendly wrappers
 
 pub fn error_msg(fmt: [*c]const u8) void {
     @"error"(fmt);
