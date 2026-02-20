@@ -38,7 +38,6 @@ pub fn build(b: *std.Build) void {
             "object.c",
             "term.c",
             "usermove.c",
-            "util.c",
         },
         .flags = &.{ "-Wall", "-Wno-format-security", "-fno-sanitize=alignment" },
     });
