@@ -1,6 +1,5 @@
 const std = @import("std");
 const types = @import("types.zig");
-const move_info_t = types.move_info_t;
 
 pub export var save_interval: u16 = undefined;
 
@@ -118,9 +117,3 @@ pub export var lines: c_int = 0;
 pub export var cols: c_int = 0;
 pub export var jnkbuf: [STRSIZE]u8 = std.mem.zeroes([STRSIZE]u8);
 
-// Move info (defined in data.c)
-pub extern var user_army: types.move_info_t;
-pub extern var user_fighter: types.move_info_t;
-pub extern var user_ship: types.move_info_t;
-pub extern var user_army_attack: move_info_t;
-pub extern var user_ship_repair: move_info_t;

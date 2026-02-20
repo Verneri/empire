@@ -2,7 +2,7 @@ pub extern fn prompt(fmt: [*c]const u8, ...) void;
 pub extern fn get_chx() u8;
 pub extern fn @"error"(fmt: [*c]const u8, ...) void;
 pub extern fn huh() void;
-pub extern fn help(text: [*c][*c]u8, nlines: c_int) void;
+pub extern fn help(text: [*c][*c]const u8, nlines: c_int) void;
 pub extern fn getint(message: [*c]const u8) c_int;
 pub extern fn comment(fmt: [*c]const u8, ...) void;
 pub extern fn ksend(fmt: [*c]const u8, ...) void;

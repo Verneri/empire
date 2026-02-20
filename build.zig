@@ -31,7 +31,6 @@ pub fn build(b: *std.Build) void {
         .root = .{ .cwd_relative = "csrc" },
         .files = &.{
             "compmove.c",
-            "data.c",
             "display.c",
             "edit.c",
             "game.c",

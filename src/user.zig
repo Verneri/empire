@@ -385,15 +385,15 @@ fn move_explore(obj: *types.piece_info_t) void {
     var path_map: [globals.MAP_SIZE]types.path_map_t = undefined;
     const loc_terrain = switch (piece_type(obj)) {
         .Army => .{
-            map.vmap_find_lobj(&path_map, &globals.user_map, obj.loc, &globals.user_army),
+            map.vmap_find_lobj(&path_map, &globals.user_map, obj.loc, &data.user_army),
             "+",
         },
         .Fighter => .{
-            map.vmap_find_aobj(&path_map, &globals.user_map, obj.loc, &globals.user_fighter),
+            map.vmap_find_aobj(&path_map, &globals.user_map, obj.loc, &data.user_fighter),
             "+.O",
         },
         else => .{
-            map.vmap_find_wobj(&path_map, &globals.user_map, obj.loc, &globals.user_ship),
+            map.vmap_find_wobj(&path_map, &globals.user_map, obj.loc, &data.user_ship),
             ".O",
         },
     };
@@ -433,7 +433,7 @@ fn move_armyattack(obj: *types.piece_info_t) void {
         &path_map,
         &globals.user_map,
         obj.loc,
-        &globals.user_army_attack,
+        &data.user_army_attack,
     );
     if (loc == obj.loc) return;
     map.vmap_mark_path(&path_map, &globals.user_map, loc);
@@ -475,7 +475,7 @@ fn move_repair(obj: *types.piece_info_t) void {
         &path_map,
         &globals.user_map,
         obj.loc,
-        &globals.user_ship_repair,
+        &data.user_ship_repair,
     );
     if (loc == obj.loc) return;
     map.vmap_mark_path(&path_map, &globals.user_map, loc);

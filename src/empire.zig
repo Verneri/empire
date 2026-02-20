@@ -75,7 +75,7 @@ fn do_command(orders: u8) void {
             computer.move(1);
         },
         'H' => {
-            terminal.help(data.help_cmd, data.cmd_lines);
+            terminal.help(&data.help_cmd, data.cmd_lines);
         },
         'J' => {
             var ncycle = display.cur_sector();
