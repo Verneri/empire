@@ -4,11 +4,10 @@ const types = @import("types.zig");
 const data = @import("data.zig");
 const terminal = @import("terminal.zig");
 const util = @import("util.zig");
+const vx = @import("vx.zig");
 
 const c = @cImport({
     @cInclude("stdio.h");
-    @cInclude("string.h");
-    @cInclude("curses.h");
 });
 
 const view_map_t = types.view_map_t;
@@ -30,30 +29,24 @@ const INFINITY: c_int = 10000000;
 
 const VaList = std.builtin.VaList;
 
-// ncurses externs
-extern fn move(y: c_int, x: c_int) c_int;
-extern fn addstr(s: [*c]const u8) c_int;
-extern fn addch(ch: c.chtype) c_int;
-extern fn clrtoeol() c_int;
-extern fn clear() c_int;
-extern fn refresh() c_int;
-extern fn beep() c_int;
-extern fn noecho() c_int;
-extern fn initscr() *anyopaque;
-extern fn endwin() c_int;
-extern fn napms(ms: c_int) c_int;
-extern fn start_color() c_int;
-extern fn init_pair(pair: c_short, f: c_short, bg: c_short) c_int;
-extern fn attron(attrs: c_int) c_int;
-extern fn attroff(attrs: c_int) c_int;
-extern fn keypad(win: *anyopaque, bf: bool) c_int;
-extern fn clearok(win: *anyopaque, bf: bool) c_int;
-extern fn cbreak() c_int;
+// C library (for vsnprintf / snprintf)
 extern fn vsnprintf(buf: [*c]u8, size: c_ulong, fmt: [*c]const u8, ap: *VaList) c_int;
-extern var LINES: c_int;
-extern var COLS: c_int;
-extern var stdscr: *anyopaque;
-extern var curscr: *anyopaque;
+
+// ── styles ───────────────────────────────────────────────────────────────
+const style_default: vx.Style = .{ .fg = .{ .index = 7 }, .bold = true };
+const style_green: vx.Style = .{ .fg = .{ .index = 2 }, .bold = true };
+const style_cyan: vx.Style = .{ .fg = .{ .index = 6 }, .bold = true };
+const style_red: vx.Style = .{ .fg = .{ .index = 1 }, .bold = true };
+const style_white: vx.Style = .{ .fg = .{ .index = 7 }, .bold = true };
+
+fn style_for(ch: u8) vx.Style {
+    return switch (ch) {
+        data.MAP_LAND => style_green,
+        data.MAP_SEA => style_cyan,
+        'a', 'f', 'p', 'd', 'b', 't', 'c', 's', 'z', 'X' => style_red,
+        else => style_white,
+    };
+}
 
 // State
 var whose_map: c_int = UNOWNED;
@@ -63,55 +56,37 @@ var save_sector: c_int = 0;
 var save_cursor: c_long = 0;
 var change_ok: bool = true;
 
-// Color support
+// ── cursor tracking for move_cursor / show_loc ───────────────────────────
+// These track the logical cursor position on the map display.
+var cursor_row: c_int = 0;
+var cursor_col: c_int = 0;
 
-fn init_colors() void {
-    _ = start_color();
-    _ = init_pair(c.COLOR_BLACK, c.COLOR_BLACK, c.COLOR_BLACK);
-    _ = init_pair(c.COLOR_GREEN, c.COLOR_GREEN, c.COLOR_BLACK);
-    _ = init_pair(c.COLOR_RED, c.COLOR_RED, c.COLOR_BLACK);
-    _ = init_pair(c.COLOR_CYAN, c.COLOR_CYAN, c.COLOR_BLACK);
-    _ = init_pair(c.COLOR_WHITE, c.COLOR_WHITE, c.COLOR_BLACK);
-    _ = init_pair(c.COLOR_MAGENTA, c.COLOR_MAGENTA, c.COLOR_BLACK);
-    _ = init_pair(c.COLOR_BLUE, c.COLOR_BLUE, c.COLOR_BLACK);
-    _ = init_pair(c.COLOR_YELLOW, c.COLOR_YELLOW, c.COLOR_BLACK);
-    _ = attron(c.A_BOLD);
-    _ = keypad(stdscr, true);
-}
-
-fn color_pair(pair: c_int) c_int {
-    return @as(c_int, pair) << 8;
-}
-
-fn disp_square(vp: *view_map_t) void {
-    const attr: c_int = switch (vp.contents) {
-        data.MAP_LAND => color_pair(c.COLOR_GREEN),
-        data.MAP_SEA => color_pair(c.COLOR_CYAN),
-        'a', 'f', 'p', 'd', 'b', 't', 'c', 's', 'z', 'X' => color_pair(c.COLOR_RED),
-        else => color_pair(c.COLOR_WHITE),
-    };
-    _ = attron(attr);
-    _ = addch(@intCast(vp.contents));
-    _ = attroff(attr);
-    _ = attron(color_pair(c.COLOR_WHITE));
+fn disp_square_at(col: u16, row: u16, vp: *view_map_t) void {
+    vx.writeCell(col, row, @intCast(vp.contents & 0x7F), style_for(vp.contents));
 }
 
 // Public API
 
 pub fn announce(msg: [*c]const u8) void {
-    _ = addstr(msg);
+    if (msg == null) return;
+    var i: usize = 0;
+    while (msg[i] != 0) : (i += 1) {
+        const col: u16 = @as(u16, @intCast(cursor_col)) +| @as(u16, @intCast(i));
+        if (col >= vx.term_width) break;
+        vx.writeCell(col, @intCast(cursor_row), @intCast(msg[i] & 0x7F), style_default);
+    }
 }
 
-pub fn direction(ch: c_uint) c_int {
+pub fn direction(ch: u21) c_int {
     return switch (ch) {
-        'w', 'W', c.KEY_UP => 0,
-        'e', 'E', c.KEY_A3, c.KEY_PPAGE => 1,
-        'd', 'D', c.KEY_RIGHT => 2,
-        'c', 'C', c.KEY_C3, c.KEY_NPAGE => 3,
-        'x', 'X', c.KEY_DOWN => 4,
-        'z', 'Z', c.KEY_C1, c.KEY_END => 5,
-        'a', 'A', c.KEY_LEFT => 6,
-        'q', 'Q', c.KEY_A1, c.KEY_HOME => 7,
+        'w', 'W', vx.Key.up => 0,
+        'e', 'E', vx.Key.page_up => 1,
+        'd', 'D', vx.Key.right => 2,
+        'c', 'C', vx.Key.page_down => 3,
+        'x', 'X', vx.Key.down => 4,
+        'z', 'Z', vx.Key.end => 5,
+        'a', 'A', vx.Key.left => 6,
+        'q', 'Q', vx.Key.home => 7,
         else => -1,
     };
 }
@@ -150,11 +125,13 @@ fn on_screen(loc: c_long) bool {
 fn show_loc(vmap: [*c]view_map_t, loc: c_long) void {
     const r: c_int = @intCast(util.loc_row(loc));
     const col: c_int = @intCast(util.loc_col(loc));
-    _ = move(r - ref_row + NUMTOPS, col - ref_col);
+    const scr_row = r - ref_row + NUMTOPS;
+    const scr_col = col - ref_col;
     const uloc: usize = @intCast(loc);
-    disp_square(@ptrCast(&vmap[uloc]));
+    disp_square_at(@intCast(scr_col), @intCast(scr_row), @ptrCast(&vmap[uloc]));
     save_cursor = loc;
-    _ = move(r - ref_row + NUMTOPS, col - ref_col);
+    cursor_row = scr_row;
+    cursor_col = scr_col;
 }
 
 pub fn display_loc(whose: c_int, vmap: [*c]view_map_t, loc: c_long) void {
@@ -177,8 +154,9 @@ fn display_screen(vmap: [*c]view_map_t) void {
         var col = ref_col;
         while (col < ref_col + display_cols and col < MAP_WIDTH) : (col += 1) {
             const t = util.row_col_loc(r, col);
-            _ = move(r - ref_row + NUMTOPS, col - ref_col);
-            disp_square(@ptrCast(&vmap[@intCast(t)]));
+            const scr_row: u16 = @intCast(r - ref_row + NUMTOPS);
+            const scr_col: u16 = @intCast(col - ref_col);
+            disp_square_at(scr_col, scr_row, @ptrCast(&vmap[@intCast(t)]));
         }
     }
 }
@@ -200,7 +178,7 @@ pub fn print_sector(whose: c_int, vmap: [*c]view_map_t, sector: c_int) void {
         ref_col <= first_col and
         ref_row + display_rows - 1 >= last_row and
         ref_col + display_cols - 1 >= last_col))
-        _ = clear();
+        vx.clear();
 
     ref_row = first_row - @divTrunc(display_rows - ROWS_PER_SECTOR, 2);
     ref_col = first_col - @divTrunc(display_cols - COLS_PER_SECTOR, 2);
@@ -233,14 +211,15 @@ pub fn print_sector(whose: c_int, vmap: [*c]view_map_t, sector: c_int) void {
             pos_str(r - ref_row + NUMTOPS, globals.cols - NUMSIDES + 1, "  ");
     }
 
-    // print round number
+    // print round number vertically
     var jnkbuf: [STRSIZE]u8 = undefined;
     _ = c.snprintf(&jnkbuf, STRSIZE, "Sector %d Round %ld", sector, globals.date);
     r = 0;
     while (jnkbuf[@intCast(r)] != 0) : (r += 1) {
         if (r + NUMTOPS >= MAP_HEIGHT) break;
-        _ = move(r + NUMTOPS, globals.cols - NUMSIDES + 4);
-        _ = addch(@intCast(jnkbuf[@intCast(r)]));
+        const scr_row: u16 = @intCast(r + NUMTOPS);
+        const scr_col: u16 = @intCast(globals.cols - NUMSIDES + 4);
+        vx.writeCell(scr_col, scr_row, @intCast(jnkbuf[@intCast(r)]), style_default);
     }
 }
 
@@ -254,7 +233,8 @@ pub fn move_cursor(cursor: [*c]c_long, offset: c_int) bool {
 
     const r: c_int = @intCast(util.loc_row(save_cursor));
     const col: c_int = @intCast(util.loc_col(save_cursor));
-    _ = move(r - ref_row + NUMTOPS, col - ref_col);
+    cursor_row = r - ref_row + NUMTOPS;
+    cursor_col = col - ref_col;
 
     return true;
 }
@@ -265,7 +245,7 @@ fn zoom_rank(ch: u8) usize {
     for (0..zoom_list.len) |i| {
         if (zoom_list[i] == ch) return i;
     }
-    return zoom_list.len; // not found, lowest priority
+    return zoom_list.len;
 }
 
 fn print_zoom_cell(vmap: [*c]view_map_t, row: c_int, col: c_int, row_inc: c_int, col_inc: c_int) void {
@@ -279,8 +259,9 @@ fn print_zoom_cell(vmap: [*c]view_map_t, row: c_int, col: c_int, row_inc: c_int,
                 cell = contents;
         }
     }
-    _ = move(@divTrunc(row, row_inc) + NUMTOPS, @divTrunc(col, col_inc));
-    _ = addch(@intCast(cell));
+    const scr_row: u16 = @intCast(@divTrunc(row, row_inc) + NUMTOPS);
+    const scr_col: u16 = @intCast(@divTrunc(col, col_inc));
+    vx.writeCell(scr_col, scr_row, @intCast(cell), style_for(cell));
 }
 
 pub fn print_zoom(vmap: [*c]view_map_t) void {
@@ -298,7 +279,7 @@ pub fn print_zoom(vmap: [*c]view_map_t) void {
     }
 
     pos_str(0, 0, "Round #%d", globals.date);
-    _ = refresh();
+    vx.render();
 }
 
 pub fn print_xzoom(vmap: [*c]view_map_t) void {
@@ -307,17 +288,17 @@ pub fn print_xzoom(vmap: [*c]view_map_t) void {
 
 fn print_pzoom_cell(pmap: [*c]path_map_t, vmap: [*c]view_map_t, row: c_int, col: c_int, row_inc: c_int, col_inc: c_int) void {
     var sum: c_int = 0;
-    var d: c_int = 0;
+    var d_count: c_int = 0;
 
     var r = row;
     while (r < row + row_inc) : (r += 1) {
         var cc = col;
         while (cc < col + col_inc) : (cc += 1) {
             sum += pmap[@intCast(util.row_col_loc(r, cc))].cost;
-            d += 1;
+            d_count += 1;
         }
     }
-    sum = @divTrunc(sum, d);
+    sum = @divTrunc(sum, d_count);
 
     var cell: u8 = undefined;
     if (pmap[@intCast(util.row_col_loc(row, col))].terrain == T_PATH)
@@ -341,8 +322,9 @@ fn print_pzoom_cell(pmap: [*c]path_map_t, vmap: [*c]view_map_t, row: c_int, col:
     if (cell == ' ')
         print_zoom_cell(vmap, row, col, row_inc, col_inc)
     else {
-        _ = move(@divTrunc(row, row_inc) + NUMTOPS, @divTrunc(col, col_inc));
-        _ = addch(@intCast(cell));
+        const scr_row: u16 = @intCast(@divTrunc(row, row_inc) + NUMTOPS);
+        const scr_col: u16 = @intCast(@divTrunc(col, col_inc));
+        vx.writeCell(scr_col, scr_row, @intCast(cell), style_default);
     }
 }
 
@@ -362,7 +344,7 @@ pub fn print_pzoom(s: [*c]const u8, pmap: [*c]path_map_t, vmap: [*c]view_map_t) 
 
     terminal.prompt(s);
     _ = terminal.get_chx();
-    _ = refresh();
+    vx.render();
 }
 
 pub fn display_score() void {
@@ -371,70 +353,84 @@ pub fn display_score() void {
 }
 
 pub fn clreol(linep: c_int, colp: c_int) void {
-    _ = move(linep, colp);
-    _ = clrtoeol();
+    const row: u16 = @intCast(linep);
+    var x: u16 = @intCast(colp);
+    while (x < vx.term_width) : (x += 1) {
+        vx.clearCell(x, row);
+    }
 }
 
 pub fn ttinit() void {
-    _ = initscr();
-    _ = noecho();
-    _ = cbreak();
-    init_colors();
-    globals.lines = LINES;
-    globals.cols = COLS;
+    vx.init();
+    globals.lines = vx.lines();
+    globals.cols = vx.cols();
     if (globals.lines > MAP_HEIGHT + NUMTOPS + 1) globals.lines = MAP_HEIGHT + NUMTOPS + 1;
     if (globals.cols > MAP_WIDTH + NUMSIDES) globals.cols = MAP_WIDTH + NUMSIDES;
 }
 
 pub fn clear_screen() void {
-    _ = clear();
-    _ = refresh();
+    vx.clear();
+    vx.fullRedraw();
     kill_display();
 }
 
 pub fn complain() void {
-    _ = beep();
+    vx.beep();
 }
 
 pub fn redisplay() void {
-    _ = refresh();
+    vx.render();
 }
 
 pub fn redraw() void {
-    _ = clearok(curscr, true);
-    _ = refresh();
+    vx.fullRedraw();
 }
 
 pub fn delay() void {
     var t = globals.delay_time;
     const i: c_int = 500;
-    _ = refresh();
+    vx.render();
     if (t > i) {
-        _ = move(LINES - 1, 0);
+        cursor_row = vx.lines() - 1;
+        cursor_col = 0;
     }
     while (t > 0) : (t -= i) {
-        _ = napms(if (t > i) i else t);
+        vx.sleep(if (t > i) i else t);
         if (t > i) {
-            _ = addstr("*");
-            _ = refresh();
+            vx.writeCell(@intCast(cursor_col), @intCast(cursor_row), '*', style_default);
+            cursor_col += 1;
+            vx.render();
         }
     }
 }
 
 pub fn close_disp() void {
-    _ = move(LINES - 1, 0);
-    _ = clrtoeol();
-    _ = refresh();
-    _ = endwin();
+    // Clear bottom line
+    const row: u16 = @intCast(vx.lines() - 1);
+    var x: u16 = 0;
+    while (x < vx.term_width) : (x += 1) {
+        vx.clearCell(x, row);
+    }
+    vx.render();
+    vx.deinit();
 }
 
 pub fn pos_str(row: c_int, col: c_int, str: [*c]const u8, ...) callconv(.c) void {
     var ap = @cVaStart();
     defer @cVaEnd(&ap);
     var junkbuf: [STRSIZE]u8 = undefined;
-    _ = move(row, col);
     _ = vsnprintf(&junkbuf, STRSIZE, str, &ap);
-    _ = addstr(&junkbuf);
+
+    // Write the formatted string at (col, row)
+    var i: usize = 0;
+    while (junkbuf[i] != 0) : (i += 1) {
+        const scr_col: u16 = @as(u16, @intCast(col)) +| @as(u16, @intCast(i));
+        if (scr_col >= vx.term_width) break;
+        vx.writeCell(scr_col, @intCast(row), @intCast(junkbuf[i] & 0x7F), style_default);
+    }
+    // Update cursor to end of string for announce() compatibility
+    cursor_row = row;
+    cursor_col = col + @as(c_int, @intCast(i));
 }
 
 pub fn print_movie_cell(mbuf: [*c]u8, row: c_int, col: c_int, row_inc: c_int, col_inc: c_int) void {
@@ -448,8 +444,9 @@ pub fn print_movie_cell(mbuf: [*c]u8, row: c_int, col: c_int, row_inc: c_int, co
                 cell = contents;
         }
     }
-    _ = move(@divTrunc(row, row_inc) + NUMTOPS, @divTrunc(col, col_inc));
-    _ = addch(@intCast(cell));
+    const scr_row: u16 = @intCast(@divTrunc(row, row_inc) + NUMTOPS);
+    const scr_col: u16 = @intCast(@divTrunc(col, col_inc));
+    vx.writeCell(scr_col, scr_row, @intCast(cell), style_for(cell));
 }
 
 // Inline wrappers for convenience

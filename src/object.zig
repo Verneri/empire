@@ -41,9 +41,6 @@ const MOVE_N = @as(c_long, @intFromEnum(globals.Function.Move_N));
 
 const MAP_CITY = data.MAP_CITY;
 
-// ncurses
-extern fn refresh() c_int;
-
 
 const sat_dir = [4]c_long{ MOVE_NW, MOVE_SW, MOVE_NE, MOVE_SE };
 pub var city_char: [3]u8 = .{ MAP_CITY, 'O', 'X' };

@@ -6,6 +6,7 @@ const display = @import("display.zig");
 const terminal = @import("terminal.zig");
 const object = @import("object.zig");
 const util = @import("util.zig");
+const vx = @import("vx.zig");
 
 const c = @cImport({
     @cInclude("stdio.h");
@@ -33,13 +34,6 @@ const ARMYATTACK = @as(c_long, @intFromEnum(globals.Function.ArmyAttack));
 const WFTRANSPORT = @as(c_long, @intFromEnum(globals.Function.WFTransport));
 const REPAIR = @as(c_long, @intFromEnum(globals.Function.Repair));
 const MOVE_N = @as(c_long, @intFromEnum(globals.Function.Move_N));
-
-// ncurses externs
-extern fn cbreak() c_int;
-extern fn nocbreak() c_int;
-extern fn refresh() c_int;
-extern fn getch() c_int;
-extern fn beep() c_int;
 
 fn funci(x: c_long) usize {
     return @intCast(-x - 1);
@@ -88,9 +82,8 @@ pub fn edit(edit_cursor_init: c_long) void {
 }
 
 fn e_cursor(edit_cursor: *c_long) u8 {
-    _ = cbreak();
-    _ = refresh();
-    var e: c_uint = @bitCast(@as(c_int, getch()));
+    vx.render();
+    var e: u21 = vx.getch();
     terminal.topini();
 
     while (true) {
@@ -98,13 +91,12 @@ fn e_cursor(edit_cursor: *c_long) u8 {
         if (p == -1) break;
 
         if (!display.move_cursor(edit_cursor, data.dir_offset[@intCast(p)])) {
-            _ = beep();
+            vx.beep();
         }
 
-        _ = refresh();
-        e = @bitCast(@as(c_int, getch()));
+        vx.render();
+        e = vx.getch();
     }
-    _ = nocbreak();
     const ch: u8 = @truncate(e);
     return std.ascii.toUpper(ch);
 }

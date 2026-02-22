@@ -2,6 +2,7 @@ const std = @import("std");
 const globals = @import("globals.zig");
 const data = @import("data.zig");
 const display = @import("display.zig");
+const vx = @import("vx.zig");
 
 const c = @cImport({
     @cInclude("stdio.h");
@@ -15,19 +16,6 @@ const VaList = std.builtin.VaList;
 // C library
 extern fn vsnprintf(buf: [*c]u8, size: c_ulong, fmt: [*c]const u8, ap: *VaList) c_int;
 
-// ncurses externs
-extern fn move(y: c_int, x: c_int) c_int;
-extern fn addstr(s: [*c]const u8) c_int;
-extern fn clrtoeol() c_int;
-extern fn refresh() c_int;
-extern fn echo() c_int;
-extern fn noecho() c_int;
-extern fn cbreak() c_int;
-extern fn nocbreak() c_int;
-extern fn getch() c_int;
-extern fn getnstr(buf: [*c]u8, n: c_int) c_int;
-extern var LINES: c_int;
-
 // State
 var need_delay: bool = false;
 
@@ -35,9 +23,22 @@ var need_delay: bool = false;
 fn writeTopmsg(line: c_int, text: [*c]const u8) void {
     var l = line;
     if (l < 1 or l > NUMTOPS) l = 1;
-    _ = move(l - 1, 0);
-    _ = addstr(text);
-    _ = clrtoeol();
+    const row: u16 = @intCast(l - 1);
+
+    // Write text
+    var col: u16 = 0;
+    if (text != null) {
+        var i: usize = 0;
+        while (text[i] != 0) : (i += 1) {
+            if (col >= vx.term_width) break;
+            vx.writeCell(col, row, @intCast(text[i] & 0x7F), .{});
+            col += 1;
+        }
+    }
+    // Clear to end of line
+    while (col < vx.term_width) : (col += 1) {
+        vx.clearCell(col, row);
+    }
 }
 
 fn vtopmsg(line: c_int, fmt: [*c]const u8, ap: *VaList) void {
@@ -130,18 +131,14 @@ pub fn ksend(fmt: [*c]const u8, ...) callconv(.c) void {
 // Input functions
 
 pub fn get_str(buf: [*c]u8, sizep: c_int) void {
-    _ = echo();
     get_strq(buf, sizep);
-    _ = noecho();
 }
 
 fn get_strq(buf: [*c]u8, sizep: c_int) void {
-    _ = nocbreak();
-    _ = refresh();
-    _ = getnstr(buf, sizep);
+    vx.render();
+    vx.getnstr(buf, sizep);
     need_delay = false;
     info("", "", "");
-    _ = cbreak();
 }
 
 pub fn get_chx() u8 {
@@ -177,20 +174,11 @@ pub fn getint(message: [*c]const u8) c_int {
     }
 }
 
-fn get_c() u8 {
-    _ = echo();
-    const ch = get_cq();
-    _ = noecho();
-    return ch;
-}
-
 fn get_cq() u8 {
-    _ = cbreak();
-    _ = refresh();
-    const ch: u8 = @truncate(@as(c_uint, @bitCast(getch())));
+    vx.render();
+    const ch: u21 = vx.getch();
     topini();
-    _ = nocbreak();
-    return ch;
+    return @truncate(ch);
 }
 
 pub fn getyn(message: [*c]const u8) bool {
@@ -259,7 +247,7 @@ pub fn help(text: [*c][*c]const u8, nlines: c_int) void {
             @as(c_int, data.piece_attr[idx].build_time),
         );
     }
-    _ = refresh();
+    vx.render();
 }
 
 // Location display
@@ -275,7 +263,8 @@ pub fn loc_disp(loc: c_int) c_int {
     while (i > 0) : (i -= 1) {
         nrow *= 10;
     }
-    _ = move(LINES - 1, 0);
+    // Position cursor at bottom-left
+    // (legacy: the old code used curses.move(lines-1, 0) here)
     return nrow + col;
 }
 

@@ -16,6 +16,8 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
+    const vaxis_dep = b.dependency("vaxis", .{ .target = target, .optimize = optimize });
+
     const empire = b.addExecutable(.{
         .name = "vms-empire",
         .root_module = b.createModule(.{
@@ -23,9 +25,11 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
             .link_libc = true,
             .root_source_file = b.path("src/main.zig"),
+            .imports = &.{
+                .{ .name = "vaxis", .module = vaxis_dep.module("vaxis") },
+            },
         }),
     });
-    empire.linkSystemLibrary("ncurses");
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
