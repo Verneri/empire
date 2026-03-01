@@ -1,3 +1,4 @@
+const std = @import("std");
 const display = @import("display.zig");
 const math = @import("math.zig");
 const game = @import("game.zig");
@@ -22,17 +23,27 @@ pub fn empire() void {
 
     // Main event loop
     while (true) {
-        const event = vx.nextEvent();
-        switch (event) {
-            .key_press => |key| {
-                state.handleKey(key);
-                vx.render();
-            },
-            .winsize => |ws| {
-                vx.handleResize(ws);
-                vx.render();
-            },
-            else => {},
+        if (state.hasActiveTimer()) {
+            // Timer active: poll events non-blocking and tick
+            if (vx.tryEvent()) |event| {
+                handleEvent(event);
+            }
+            state.tick();
+            vx.render();
+            std.Thread.sleep(16 * std.time.ns_per_ms); // ~60fps
+        } else {
+            // Idle: block until next event
+            const event = vx.nextEvent();
+            handleEvent(event);
+            vx.render();
         }
+    }
+}
+
+fn handleEvent(event: vx.Event) void {
+    switch (event) {
+        .key_press => |key| state.handleKey(key),
+        .winsize => |ws| vx.handleResize(ws),
+        else => {},
     }
 }

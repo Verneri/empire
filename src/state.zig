@@ -147,7 +147,7 @@ pub const DelayCtx = struct {
     last_tick: i128,
     cursor_col: c_int,
     cursor_row: c_int,
-    rendered_initial: bool = false,
+    next_star_ms: c_int, // countdown to next asterisk
 };
 
 // ── Stack ───────────────────────────────────────────────────────────────
@@ -217,21 +217,17 @@ pub fn tick() void {
     if (frame.* != .delay) return;
 
     const ctx = &frame.delay;
-    if (!ctx.rendered_initial) {
-        ctx.rendered_initial = true;
-        ctx.last_tick = std.time.nanoTimestamp();
-        return;
-    }
-
     const now = std.time.nanoTimestamp();
     const elapsed_ns = now - ctx.last_tick;
     ctx.last_tick = now;
     const elapsed_ms: c_int = @intCast(@min(@divTrunc(elapsed_ns, std.time.ns_per_ms), 100000));
     ctx.remaining_ms -= elapsed_ms;
+    ctx.next_star_ms -= elapsed_ms;
 
-    if (ctx.remaining_ms > 500) {
+    if (ctx.next_star_ms <= 0 and ctx.remaining_ms > 0) {
         vx.writeCell(@intCast(ctx.cursor_col), @intCast(ctx.cursor_row), '*', .{});
         ctx.cursor_col += 1;
+        ctx.next_star_ms += 500;
     }
 
     if (ctx.remaining_ms <= 0) {
@@ -247,6 +243,18 @@ pub fn isIdle() bool {
 pub fn hasActiveTimer() bool {
     if (stack.depth == 0) return false;
     return stack.top().* == .delay;
+}
+
+fn pushDelay() void {
+    const row: c_int = @intCast(vx.lines() - 1);
+    stack.push(.{ .delay = .{
+        .remaining_ms = globals.delay_time,
+        .last_tick = std.time.nanoTimestamp(),
+        .cursor_col = 0,
+        .cursor_row = row,
+        .next_star_ms = 500,
+    } });
+    terminal.clear_need_delay();
 }
 
 pub fn showIdlePrompt() void {
@@ -817,8 +825,8 @@ fn askUserDirection(obj: *piece_info_t, dir: globals.Direction) void {
     }
     if (!globals.map[@intCast(loc)].on_board) {
         terminal.@"error"("You cannot move to the edge of the world.");
-        display.delay();
-        // Stay in ask_user - user needs to pick another direction
+        pushDelay();
+        // Stay in ask_user - delay frame on top; when it pops, user picks another direction
         return;
     }
     switch (@as(globals.PieceType, @enumFromInt(obj.type))) {

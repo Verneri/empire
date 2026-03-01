@@ -89,6 +89,10 @@ pub fn set_need_delay() void {
     need_delay = true;
 }
 
+pub fn clear_need_delay() void {
+    need_delay = false;
+}
+
 pub fn topini() void {
     info("", "", "");
 }
