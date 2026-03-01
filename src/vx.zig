@@ -106,9 +106,41 @@ pub fn fullRedraw() void {
     vx.render(tty.writer()) catch {};
 }
 
+// ── event loop (for event-driven main loop) ─────────────────────────────
+
+pub const Event = vaxis.Event;
+
+pub fn tryEvent() ?Event {
+    return loop.tryEvent();
+}
+
+pub fn nextEvent() Event {
+    return loop.nextEvent();
+}
+
+pub fn setCursorVisible(visible: bool) void {
+    vx.screen.cursor_vis = visible;
+}
+
+pub fn setScreenCursor(row: u16, col: u16) void {
+    vx.screen.cursor = .{ .row = row, .col = col };
+}
+
+pub fn screenCursorRow() u16 {
+    return vx.screen.cursor.row;
+}
+
+pub fn screenCursorCol() u16 {
+    return vx.screen.cursor.col;
+}
+
+pub fn renderWithCursor() void {
+    vx.render(tty.writer()) catch {};
+}
+
 // ── input ────────────────────────────────────────────────────────────────
 
-fn handleResize(ws: vaxis.Winsize) void {
+pub fn handleResize(ws: vaxis.Winsize) void {
     term_height = ws.rows;
     term_width = ws.cols;
     vx.resize(alloc, tty.writer(), ws) catch {};

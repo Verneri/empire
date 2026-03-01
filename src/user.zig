@@ -167,7 +167,7 @@ fn piece_move(obj: *types.piece_info_t) void {
     }
 }
 
-fn awake(obj: *types.piece_info_t) bool {
+pub fn awake(obj: *types.piece_info_t) bool {
     if (type_is(obj, .Army) and
         map.vmap_at_sea(&globals.user_map, obj.loc))
     {
@@ -325,7 +325,7 @@ fn ask_user(obj: *types.piece_info_t) void {
 /// Move a piece at random.  We create a list of empty squares to which
 /// the piece can move.  If there are none, we do nothing, otherwise we
 /// move the piece to a random adjacent square.
-fn move_random(obj: *types.piece_info_t) void {
+pub fn move_random(obj: *types.piece_info_t) void {
     var nloc: usize = 0;
     var loc_list: [8]c_long = [_]c_long{0} ** 8;
     for (data.dir_offset[0..8]) |offset| {
@@ -343,7 +343,7 @@ fn move_random(obj: *types.piece_info_t) void {
 /// Here we have a transport or carrier waiting to be filled.  If the
 /// object is not full, we set the move count to its maximum value.
 /// Otherwise we awaken the object.
-fn move_fill(obj: *types.piece_info_t) void {
+pub fn move_fill(obj: *types.piece_info_t) void {
     if (obj.count == object.capacity(obj)) {
         obj.*.func = @intFromEnum(globals.Function.NoFunc);
     } else {
@@ -355,7 +355,7 @@ fn move_fill(obj: *types.piece_info_t) void {
 /// owned city.  We scan through the lists of cities and carriers looking
 /// for the closest one.  We then move toward that item's location.
 /// The nearest landing field must be within the object's range.
-fn move_land(obj: *types.piece_info_t) void {
+pub fn move_land(obj: *types.piece_info_t) void {
     var best_loc: c_long = 0;
     var best_dist = object.find_nearest_city(obj.loc, @intFromEnum(globals.Ownership.User), &best_loc);
     var p: ?*piece_info_t = globals.user_obj[@intFromEnum(globals.PieceType.Carrier)];
@@ -380,7 +380,7 @@ fn move_land(obj: *types.piece_info_t) void {
 /// Have a piece explore.  We look for the nearest unexplored territory
 /// which the piece can reach and have to piece move toward the
 /// territory.
-fn move_explore(obj: *types.piece_info_t) void {
+pub fn move_explore(obj: *types.piece_info_t) void {
     var path_map: [globals.MAP_SIZE]types.path_map_t = undefined;
     const loc_terrain = switch (piece_type(obj)) {
         .Army => .{
@@ -417,13 +417,13 @@ fn move_explore(obj: *types.piece_info_t) void {
 /// If there is an adjacent transport, move the army onto
 /// the transport, and awaken the army.
 /// current implementation just panics
-fn move_armyload(obj: *types.piece_info_t) void {
+pub fn move_armyload(obj: *types.piece_info_t) void {
     _ = obj;
     std.debug.panic("no implementation for move_armyload. aborting", .{});
 }
 
 /// Move an army toward an attackable city or enemy army.
-fn move_armyattack(obj: *types.piece_info_t) void {
+pub fn move_armyattack(obj: *types.piece_info_t) void {
     if (piece_type(obj) != .Army) {
         std.debug.panic("Army attack invoked for: {s}", .{@tagName(piece_type(obj))});
     }
@@ -447,13 +447,13 @@ fn move_armyattack(obj: *types.piece_info_t) void {
 }
 
 /// unclear what this is meant to be, current implementation just panics
-fn move_ttload(obj: *types.piece_info_t) void {
+pub fn move_ttload(obj: *types.piece_info_t) void {
     _ = obj;
     std.debug.panic("no implementation for move_ttload", .{});
 }
 
 /// Move a ship toward port.  If the ship is healthy, wake it up.
-fn move_repair(obj: *types.piece_info_t) void {
+pub fn move_repair(obj: *types.piece_info_t) void {
     if (obj.type <= @intFromEnum(globals.PieceType.Fighter)) {
         std.debug.panic("Repair invoked for: {s}", .{@tagName(piece_type(obj))});
     }
@@ -491,7 +491,7 @@ fn move_repair(obj: *types.piece_info_t) void {
 /// Move an army onto a transport when it arrives.  We scan around the
 /// army to find a non-full transport.  If one is present, we move the
 /// army to the transport and waken the army.
-fn move_transport(obj: *types.piece_info_t) void {
+pub fn move_transport(obj: *types.piece_info_t) void {
     const loc = object.find_transport(@intFromEnum(globals.Ownership.User), obj.loc);
     if (loc != obj.loc) {
         object.move_obj(obj, loc);
@@ -503,7 +503,7 @@ fn move_transport(obj: *types.piece_info_t) void {
 /// Move a piece in the specified direction if possible.
 /// If the object is a fighter which has travelled for half its range,
 /// we wake it up.
-fn move_dir(obj: *types.piece_info_t) void {
+pub fn move_dir(obj: *types.piece_info_t) void {
     const dir = to_move_dir(function(obj)) catch {
         std.debug.panic("trying to convert a non movement direction function ({s}), to direction", .{@tagName(function(obj))});
     };
@@ -517,7 +517,7 @@ fn move_dir(obj: *types.piece_info_t) void {
 /// direction, we see if moving in that direction would bring us closer
 /// to our destination, and if there is nothing in the way.  If so, we
 /// move in the first direction we find.
-fn move_path(obj: *types.piece_info_t) void {
+pub fn move_path(obj: *types.piece_info_t) void {
     if (obj.loc == obj.func) {
         obj.func = @intFromEnum(globals.Function.NoFunc);
     } else {
@@ -564,7 +564,7 @@ fn user_direction(obj: *types.piece_info_t, dir: globals.Direction) void {
     user_dir(obj, dir);
 }
 
-fn reset_func(obj: *types.piece_info_t) void {
+pub fn reset_func(obj: *types.piece_info_t) void {
     const cityp = object.find_city(obj.loc);
     if (cityp != null) {
         const func = cityp.*.func[@intCast(obj.type)];
@@ -575,7 +575,7 @@ fn reset_func(obj: *types.piece_info_t) void {
     }
 }
 
-fn user_skip(obj: *types.piece_info_t) void {
+pub fn user_skip(obj: *types.piece_info_t) void {
     if (obj.type == @intFromEnum(globals.PieceType.Army) and
         globals.user_map[@intCast(obj.loc)].contents == 'O')
     {
@@ -585,7 +585,7 @@ fn user_skip(obj: *types.piece_info_t) void {
     }
 }
 
-fn user_fill(obj: *types.piece_info_t) void {
+pub fn user_fill(obj: *types.piece_info_t) void {
     if (obj.type != @intFromEnum(globals.PieceType.Transport) and
         obj.type != @intFromEnum(globals.PieceType.Carrier))
     {
@@ -621,19 +621,19 @@ fn user_set_dir(obj: *types.piece_info_t) void {
     }
 }
 
-fn user_wake(obj: *types.piece_info_t) void {
+pub fn user_wake(obj: *types.piece_info_t) void {
     obj.*.func = @intFromEnum(globals.Function.NoFunc);
 }
 
-fn user_random(obj: *types.piece_info_t) void {
+pub fn user_random(obj: *types.piece_info_t) void {
     obj.*.func = @intFromEnum(globals.Function.Random);
 }
 
-fn user_sentry(obj: *types.piece_info_t) void {
+pub fn user_sentry(obj: *types.piece_info_t) void {
     obj.*.func = @intFromEnum(globals.Function.Sentry);
 }
 
-fn user_land(obj: *types.piece_info_t) void {
+pub fn user_land(obj: *types.piece_info_t) void {
     if (obj.type != @intFromEnum(globals.PieceType.Fighter)) {
         display.complain();
     } else {
@@ -641,11 +641,11 @@ fn user_land(obj: *types.piece_info_t) void {
     }
 }
 
-fn user_explore(obj: *types.piece_info_t) void {
+pub fn user_explore(obj: *types.piece_info_t) void {
     obj.*.func = @intFromEnum(globals.Function.Explore);
 }
 
-fn user_transport(obj: *types.piece_info_t) void {
+pub fn user_transport(obj: *types.piece_info_t) void {
     if (obj.type != @intFromEnum(globals.PieceType.Army)) {
         display.complain();
     } else {
@@ -653,7 +653,7 @@ fn user_transport(obj: *types.piece_info_t) void {
     }
 }
 
-fn user_armyattack(obj: *types.piece_info_t) void {
+pub fn user_armyattack(obj: *types.piece_info_t) void {
     if (obj.type != @intFromEnum(globals.PieceType.Army)) {
         display.complain();
     } else {
@@ -661,7 +661,7 @@ fn user_armyattack(obj: *types.piece_info_t) void {
     }
 }
 
-fn user_repair(obj: *types.piece_info_t) void {
+pub fn user_repair(obj: *types.piece_info_t) void {
     if (obj.type == @intFromEnum(globals.PieceType.Army) or
         obj.type == @intFromEnum(globals.PieceType.Fighter))
     {
@@ -847,7 +847,7 @@ fn move_army_to_city(obj: *types.piece_info_t, city_loc: c_long) void {
     }
 }
 
-fn user_cancel_auto() void {
+pub fn user_cancel_auto() void {
     if (!globals.automove) {
         terminal.comment("Not in auto mode!");
     } else {
@@ -896,6 +896,6 @@ inline fn to_move_dir(func: globals.Function) DirectionConversionError!globals.D
     } else return DirectionConversionError.NotADirectionFunction;
 }
 
-inline fn dir_offset(dir: globals.Direction) c_int {
+pub inline fn dir_offset(dir: globals.Direction) c_int {
     return data.dir_offset[@intCast(@intFromEnum(dir))];
 }

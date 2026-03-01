@@ -9,6 +9,8 @@ const terminal = @import("terminal.zig");
 const USER: c_int = @intFromEnum(globals.Ownership.User);
 const UNOWNED: c_int = @intFromEnum(globals.Ownership.Unowned);
 
+pub var pending_set_prod_city: ?[*c]types.city_info_t = null;
+
 pub fn attack(att_obj: [*c]types.piece_info_t, loc: c_long) void {
     if (globals.map[@intCast(loc)].contents == data.MAP_CITY)
         attack_city(att_obj, loc)
@@ -42,7 +44,7 @@ fn attack_city(att_obj: [*c]types.piece_info_t, loc: c_long) void {
             terminal.@"error"("City at %d has been subjugated!", terminal.loc_disp(@intCast(cityp.*.loc)));
             terminal.extra("Your army has been dispersed to enforce control.");
             terminal.ksend("Your army has been dispersed to enforce control.\n");
-            object.set_prod(cityp);
+            pending_set_prod_city = cityp;
         } else if (city_owner == USER) {
             terminal.ksend("City at %d has been lost to the enemy!\n", terminal.loc_disp(@intCast(cityp.*.loc)));
             terminal.comment("City at %d has been lost to the enemy!", terminal.loc_disp(@intCast(cityp.*.loc)));

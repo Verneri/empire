@@ -111,7 +111,7 @@ fn e_print(edit_cursor: *c_long) void {
     display.sector_change();
 }
 
-fn e_set_func(loc: c_long, func: c_long) void {
+pub fn e_set_func(loc: c_long, func: c_long) void {
     const obj = object.find_obj_at_loc(loc);
     if (obj != null and obj.*.owner == USER) {
         obj.*.func = func;
@@ -120,11 +120,11 @@ fn e_set_func(loc: c_long, func: c_long) void {
     terminal.huh();
 }
 
-fn e_set_city_func(cityp: [*c]types.city_info_t, piece_type: c_int, func: c_long) void {
+pub fn e_set_city_func(cityp: [*c]types.city_info_t, piece_type: c_int, func: c_long) void {
     cityp.*.func[@intCast(piece_type)] = func;
 }
 
-fn e_random(loc: c_long) void {
+pub fn e_random(loc: c_long) void {
     e_set_func(loc, RANDOM);
 }
 
@@ -132,7 +132,7 @@ pub fn e_city_random(cityp: [*c]types.city_info_t, piece_type: c_int) void {
     e_set_city_func(cityp, piece_type, RANDOM);
 }
 
-fn e_fill(loc: c_long) void {
+pub fn e_fill(loc: c_long) void {
     const contents = globals.user_map[@intCast(loc)].contents;
     if (contents == 'T' or contents == 'C') {
         e_set_func(loc, FILL);
@@ -149,7 +149,7 @@ pub fn e_city_fill(cityp: [*c]types.city_info_t, piece_type: c_int) void {
     }
 }
 
-fn e_explore(loc: c_long) void {
+pub fn e_explore(loc: c_long) void {
     e_set_func(loc, EXPLORE);
 }
 
@@ -157,7 +157,7 @@ pub fn e_city_explore(cityp: [*c]types.city_info_t, piece_type: c_int) void {
     e_set_city_func(cityp, piece_type, EXPLORE);
 }
 
-fn e_land(loc: c_long) void {
+pub fn e_land(loc: c_long) void {
     if (globals.user_map[@intCast(loc)].contents == 'F') {
         e_set_func(loc, LAND);
     } else {
@@ -165,7 +165,7 @@ fn e_land(loc: c_long) void {
     }
 }
 
-fn e_transport(loc: c_long) void {
+pub fn e_transport(loc: c_long) void {
     if (globals.user_map[@intCast(loc)].contents == 'A') {
         e_set_func(loc, WFTRANSPORT);
     } else {
@@ -173,7 +173,7 @@ fn e_transport(loc: c_long) void {
     }
 }
 
-fn e_attack(loc: c_long) void {
+pub fn e_attack(loc: c_long) void {
     if (globals.user_map[@intCast(loc)].contents == 'A') {
         e_set_func(loc, ARMYATTACK);
     } else {
@@ -189,7 +189,7 @@ pub fn e_city_attack(cityp: [*c]types.city_info_t, piece_type: c_int) void {
     }
 }
 
-fn e_repair(loc: c_long) void {
+pub fn e_repair(loc: c_long) void {
     const contents = globals.user_map[@intCast(loc)].contents;
     if (contents == 'P' or contents == 'D' or contents == 'S' or contents == 'T' or contents == 'B' or contents == 'C') {
         e_set_func(loc, REPAIR);
@@ -233,7 +233,7 @@ pub fn e_city_stasis(cityp: [*c]types.city_info_t, piece_type: c_int) void {
     }
 }
 
-fn e_wake(loc: c_long) void {
+pub fn e_wake(loc: c_long) void {
     const uloc: usize = @intCast(loc);
     const cityp = object.find_city(loc);
     if (cityp != null) {
@@ -282,7 +282,7 @@ fn e_city_func(path_start: *c_long, loc: c_long, path_type: *c_int) void {
     }
 }
 
-fn e_move(path_start: *c_long, loc: c_long) void {
+pub fn e_move(path_start: *c_long, loc: c_long) void {
     const contents = globals.user_map[@intCast(loc)].contents;
     if (!std.ascii.isUpper(contents)) {
         terminal.huh();
@@ -293,7 +293,7 @@ fn e_move(path_start: *c_long, loc: c_long) void {
     }
 }
 
-fn e_end(path_start: *c_long, loc: c_long, path_type: c_int) void {
+pub fn e_end(path_start: *c_long, loc: c_long, path_type: c_int) void {
     if (path_start.* == -1) {
         terminal.huh();
     } else if (path_type == NOPIECE) {
@@ -306,7 +306,7 @@ fn e_end(path_start: *c_long, loc: c_long, path_type: c_int) void {
     path_start.* = -1;
 }
 
-fn e_sleep(loc: c_long) void {
+pub fn e_sleep(loc: c_long) void {
     if (globals.user_map[@intCast(loc)].contents == 'O') {
         terminal.huh();
     } else {
@@ -314,7 +314,7 @@ fn e_sleep(loc: c_long) void {
     }
 }
 
-fn e_info(edit_cursor: c_long) void {
+pub fn e_info(edit_cursor: c_long) void {
     const ab = globals.user_map[@intCast(edit_cursor)].contents;
 
     if (ab == 'O') {
