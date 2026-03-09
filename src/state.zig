@@ -180,6 +180,11 @@ pub const Stack = struct {
 pub var stack: Stack = .{};
 var automove_turn: u16 = 0;
 
+// ── Blink state ─────────────────────────────────────────────────────────
+var blink_loc: c_long = -1; // location to blink, -1 = none
+var blink_reverse: bool = false; // current toggle state
+var blink_last_toggle: i128 = 0; // timestamp of last toggle
+
 pub fn initState() void {
     stack = .{};
     stack.push(.idle);
@@ -212,26 +217,36 @@ pub fn handleKey(key: vx.Key) void {
 // ── Timer tick ──────────────────────────────────────────────────────────
 
 pub fn tick() void {
-    if (stack.depth == 0) return;
-    const frame = stack.top();
-    if (frame.* != .delay) return;
+    // Handle delay timer
+    if (stack.depth > 0 and stack.top().* == .delay) {
+        const ctx = &stack.top().delay;
+        const now = std.time.nanoTimestamp();
+        const elapsed_ns = now - ctx.last_tick;
+        ctx.last_tick = now;
+        const elapsed_ms: c_int = @intCast(@min(@divTrunc(elapsed_ns, std.time.ns_per_ms), 100000));
+        ctx.remaining_ms -= elapsed_ms;
+        ctx.next_star_ms -= elapsed_ms;
 
-    const ctx = &frame.delay;
-    const now = std.time.nanoTimestamp();
-    const elapsed_ns = now - ctx.last_tick;
-    ctx.last_tick = now;
-    const elapsed_ms: c_int = @intCast(@min(@divTrunc(elapsed_ns, std.time.ns_per_ms), 100000));
-    ctx.remaining_ms -= elapsed_ms;
-    ctx.next_star_ms -= elapsed_ms;
+        if (ctx.next_star_ms <= 0 and ctx.remaining_ms > 0) {
+            vx.writeCell(@intCast(ctx.cursor_col), @intCast(ctx.cursor_row), '*', .{});
+            ctx.cursor_col += 1;
+            ctx.next_star_ms += 500;
+        }
 
-    if (ctx.next_star_ms <= 0 and ctx.remaining_ms > 0) {
-        vx.writeCell(@intCast(ctx.cursor_col), @intCast(ctx.cursor_row), '*', .{});
-        ctx.cursor_col += 1;
-        ctx.next_star_ms += 500;
+        if (ctx.remaining_ms <= 0) {
+            stack.pop(); // pop delay
+        }
     }
 
-    if (ctx.remaining_ms <= 0) {
-        stack.pop(); // pop delay
+    // Handle blink toggle
+    if (blink_loc >= 0) {
+        const now = std.time.nanoTimestamp();
+        const elapsed = now - blink_last_toggle;
+        if (elapsed >= 500 * std.time.ns_per_ms) {
+            blink_reverse = !blink_reverse;
+            blink_last_toggle = now;
+            display.blink_unit(blink_loc, blink_reverse);
+        }
     }
 }
 
@@ -241,6 +256,7 @@ pub fn isIdle() bool {
 }
 
 pub fn hasActiveTimer() bool {
+    if (blink_loc >= 0) return true;
     if (stack.depth == 0) return false;
     return stack.top().* == .delay;
 }
@@ -571,6 +587,9 @@ fn advancePieceMove() void {
             ctx.need_input = false;
             // Push ask_user - will resume when it pops
             stack.push(.{ .ask_user = .{ .obj = obj } });
+            blink_loc = obj.loc;
+            blink_reverse = false;
+            blink_last_toggle = std.time.nanoTimestamp();
             redisplayAskUser(obj);
             return;
         }
@@ -799,8 +818,17 @@ fn handleAskUserCommand(ctx: *AskUserCtx, obj: *piece_info_t, key: vx.Key) void 
 }
 
 fn finishAskUser(obj: *piece_info_t) void {
+    const old_blink = blink_loc;
+    blink_loc = -1;
+    blink_reverse = false;
+    if (old_blink >= 0) {
+        display.blink_unit(old_blink, false); // restore normal appearance at blink position
+    }
     stack.pop(); // pop ask_user
     terminal.topini();
+    if (old_blink >= 0 and old_blink != obj.loc) {
+        display.display_loc_u(old_blink); // redraw old blink location
+    }
     display.display_loc_u(obj.loc);
     display.redisplay();
     // Check for pending city production from attack

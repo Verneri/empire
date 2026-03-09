@@ -466,3 +466,16 @@ pub inline fn display_loc_u(loc: c_long) void {
 pub inline fn display_loc_c(loc: c_long) void {
     display_loc(COMP, &globals.comp_map, loc);
 }
+
+pub fn blink_unit(loc: c_long, reverse: bool) void {
+    if (!on_screen(loc)) return;
+    const r: c_int = @intCast(util.loc_row(loc));
+    const col: c_int = @intCast(util.loc_col(loc));
+    const scr_row: u16 = @intCast(r - ref_row + NUMTOPS);
+    const scr_col: u16 = @intCast(col - ref_col);
+    const uloc: usize = @intCast(loc);
+    const ch = globals.user_map[uloc].contents;
+    var style = style_for(ch);
+    if (reverse) style.reverse = true;
+    vx.writeCell(scr_col, scr_row, @intCast(ch & 0x7F), style);
+}
