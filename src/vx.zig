@@ -65,11 +65,11 @@ pub fn deinit() void {
 
 // ── dimensions ───────────────────────────────────────────────────────────
 
-pub fn lines() c_int {
+pub fn lines() i32 {
     return @intCast(term_height);
 }
 
-pub fn cols() c_int {
+pub fn cols() i32 {
     return @intCast(term_width);
 }
 
@@ -181,7 +181,7 @@ pub fn getch() u21 {
     }
 }
 
-pub fn getnstr(buf: [*c]u8, n: c_int) void {
+pub fn getnstr(buf: [*]u8, n: i32) void {
     const max: usize = if (n < 1) 0 else @intCast(n - 1);
     var len: usize = 0;
     var cursor_x: u16 = 0;
@@ -226,7 +226,7 @@ pub fn beep() void {
     tty.writer().writeByte(0x07) catch {};
 }
 
-pub fn sleep(ms: c_int) void {
+pub fn sleep(ms: i32) void {
     if (ms <= 0) return;
     const ns: u64 = @as(u64, @intCast(ms)) * std.time.ns_per_ms;
     std.Thread.sleep(ns);

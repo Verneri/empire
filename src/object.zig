@@ -6,103 +6,150 @@ const display = @import("display.zig");
 const terminal = @import("terminal.zig");
 const math = @import("math.zig");
 
-const c = @cImport({
-    @cInclude("stdio.h");
-    @cInclude("string.h");
-});
-
-const piece_info_t = types.piece_info_t;
+const Piece = types.Piece;
+const PieceIdx = types.PieceIdx;
+const NO_PIECE = types.NO_PIECE;
 const city_info_t = types.city_info_t;
 const view_map_t = types.view_map_t;
-const link_t = types.link_t;
 
 const STRSIZE = globals.STRSIZE;
 const NUM_OBJECTS = globals.NUM_OBJECTS;
 const NUM_CITY = globals.NUM_CITY;
 const MAP_SIZE = globals.MAP_SIZE;
+const LIST_SIZE = globals.LIST_SIZE;
 const INFINITY = 10000000;
 
 const USER = @intFromEnum(globals.Ownership.User);
 const COMP = @intFromEnum(globals.Ownership.Comp);
 const UNOWNED = @intFromEnum(globals.Ownership.Unowned);
-const NOPIECE: c_int = @intFromEnum(globals.PieceType.NoPiece);
+const NOPIECE: i32 = @intFromEnum(globals.PieceType.NoPiece);
 const ARMY = @intFromEnum(globals.PieceType.Army);
 const FIGHTER = @intFromEnum(globals.PieceType.Fighter);
 const TRANSPORT = @intFromEnum(globals.PieceType.Transport);
 const CARRIER = @intFromEnum(globals.PieceType.Carrier);
 const SATELLITE = @intFromEnum(globals.PieceType.Satellite);
-const NOFUNC = @as(c_long, @intFromEnum(globals.Function.NoFunc));
+const NOFUNC = @as(i64, @intFromEnum(globals.Function.NoFunc));
 
-const MOVE_NW = @as(c_long, @intFromEnum(globals.Function.Move_NW));
-const MOVE_NE = @as(c_long, @intFromEnum(globals.Function.Move_NE));
-const MOVE_SW = @as(c_long, @intFromEnum(globals.Function.Move_SW));
-const MOVE_SE = @as(c_long, @intFromEnum(globals.Function.Move_SE));
-const MOVE_N = @as(c_long, @intFromEnum(globals.Function.Move_N));
+const MOVE_NW = @as(i64, @intFromEnum(globals.Function.Move_NW));
+const MOVE_NE = @as(i64, @intFromEnum(globals.Function.Move_NE));
+const MOVE_SW = @as(i64, @intFromEnum(globals.Function.Move_SW));
+const MOVE_SE = @as(i64, @intFromEnum(globals.Function.Move_SE));
+const MOVE_N = @as(i64, @intFromEnum(globals.Function.Move_N));
 
 const MAP_CITY = data.MAP_CITY;
 
-
-const sat_dir = [4]c_long{ MOVE_NW, MOVE_SW, MOVE_NE, MOVE_SE };
+const sat_dir = [4]i64{ MOVE_NW, MOVE_SW, MOVE_NE, MOVE_SE };
 pub var city_char: [3]u8 = .{ MAP_CITY, 'O', 'X' };
 
-fn funci(x: c_long) usize {
+fn funci(x: i64) usize {
     return @intCast(-x - 1);
 }
 
-fn moveDir(a: c_long) usize {
+fn moveDir(a: i64) usize {
     return @intCast(-a + MOVE_N);
 }
 
-fn ownerMap(owner: c_int) [*c]view_map_t {
+fn ownerMap(owner: i32) *[MAP_SIZE]view_map_t {
     return if (owner == USER) &globals.user_map else &globals.comp_map;
 }
 
-fn ownerList(owner: c_int) *[NUM_OBJECTS][*c]piece_info_t {
-    return if (owner == USER) &globals.user_obj else &globals.comp_obj;
-}
+// ── Pool operations ─────────────────────────────────────────────────────
 
-// Linked list operations (LINK/UNLINK macros from C)
-
-pub const LinkField = enum { piece_link, loc_link, cargo_link };
-
-fn getLink(obj: *piece_info_t, comptime field: LinkField) *link_t {
-    return switch (field) {
-        .piece_link => &obj.piece_link,
-        .loc_link => &obj.loc_link,
-        .cargo_link => &obj.cargo_link,
-    };
-}
-
-pub fn link(head: *[*c]piece_info_t, obj: *piece_info_t, comptime field: LinkField) void {
-    const lnk = getLink(obj, field);
-    lnk.prev = null;
-    lnk.next = @ptrCast(head.*);
-    if (head.* != null) {
-        const h: *piece_info_t = @ptrCast(head.*);
-        getLink(h, field).prev = obj;
+pub fn pool_init() void {
+    for (0..LIST_SIZE) |i| {
+        globals.pool[i] = .{};
+        globals.free_stack[i] = @intCast(i);
     }
-    head.* = obj;
+    globals.free_count = LIST_SIZE;
+    for (0..MAP_SIZE) |i| {
+        globals.map[i].obj_head = NO_PIECE;
+    }
 }
 
-fn unlink(head: *[*c]piece_info_t, obj: *piece_info_t, comptime field: LinkField) void {
-    const lnk = getLink(obj, field);
-    if (lnk.next) |next| {
-        getLink(next, field).prev = lnk.prev;
-    }
-    if (lnk.prev) |prev| {
-        getLink(prev, field).next = lnk.next;
+pub fn pool_spawn() PieceIdx {
+    std.debug.assert(globals.free_count > 0);
+    globals.free_count -= 1;
+    const idx = globals.free_stack[globals.free_count];
+    globals.pool[idx] = .{ .alive = true };
+    return idx;
+}
+
+pub fn pool_kill(idx: PieceIdx) void {
+    globals.pool[idx] = .{};
+    globals.free_stack[globals.free_count] = idx;
+    globals.free_count += 1;
+}
+
+pub fn pool_get(idx: PieceIdx) ?*Piece {
+    if (idx == NO_PIECE) return null;
+    const p = &globals.pool[idx];
+    if (!p.alive) return null;
+    return p;
+}
+
+pub fn pool_indexOf(piece: *const Piece) PieceIdx {
+    const base = @intFromPtr(&globals.pool);
+    const ptr = @intFromPtr(piece);
+    return @intCast((ptr - base) / @sizeOf(Piece));
+}
+
+// ── Location chain operations ───────────────────────────────────────────
+
+fn loc_link(loc: i64, idx: PieceIdx) void {
+    const uloc: usize = @intCast(loc);
+    globals.pool[idx].loc_next = globals.map[uloc].obj_head;
+    globals.map[uloc].obj_head = idx;
+}
+
+fn loc_unlink(loc: i64, idx: PieceIdx) void {
+    const uloc: usize = @intCast(loc);
+    if (globals.map[uloc].obj_head == idx) {
+        globals.map[uloc].obj_head = globals.pool[idx].loc_next;
     } else {
-        head.* = @ptrCast(lnk.next);
+        var prev = globals.map[uloc].obj_head;
+        while (prev != NO_PIECE) {
+            if (globals.pool[prev].loc_next == idx) {
+                globals.pool[prev].loc_next = globals.pool[idx].loc_next;
+                break;
+            }
+            prev = globals.pool[prev].loc_next;
+        }
     }
-    lnk.next = null;
-    lnk.prev = null;
+    globals.pool[idx].loc_next = NO_PIECE;
 }
 
-// Public API
+// ── Cargo operations ────────────────────────────────────────────────────
 
-pub fn find_nearest_city(loc: c_long, owner: c_int, city_loc: [*c]c_long) c_int {
-    var best_loc: c_long = loc;
-    var best_dist: c_long = INFINITY;
+pub fn embark(ship: *Piece, obj: *Piece) void {
+    const obj_idx = pool_indexOf(obj);
+    const ship_idx = pool_indexOf(ship);
+    obj.ship = ship_idx;
+    const ci: usize = @intCast(ship.count);
+    ship.cargo[ci] = obj_idx;
+    ship.count += 1;
+}
+
+pub fn disembark(obj: *Piece) void {
+    if (obj.ship == NO_PIECE) return;
+    const ship = &globals.pool[obj.ship];
+    const obj_idx = pool_indexOf(obj);
+    var i: usize = 0;
+    while (i < @as(usize, @intCast(ship.count))) : (i += 1) {
+        if (ship.cargo[i] == obj_idx) {
+            ship.count -= 1;
+            ship.cargo[i] = ship.cargo[@intCast(ship.count)];
+            ship.cargo[@intCast(ship.count)] = NO_PIECE;
+            break;
+        }
+    }
+    obj.ship = NO_PIECE;
+}
+
+// ── Public API ──────────────────────────────────────────────────────────
+
+pub fn find_nearest_city(loc: i64, owner: i32, city_loc: *i64) i32 {
+    var best_loc: i64 = loc;
+    var best_dist: i64 = INFINITY;
 
     for (0..NUM_CITY) |i| {
         if (globals.city[i].owner == @as(u8, @intCast(owner))) {
@@ -117,233 +164,224 @@ pub fn find_nearest_city(loc: c_long, owner: c_int, city_loc: [*c]c_long) c_int 
     return @intCast(best_dist);
 }
 
-pub fn find_city(loc: c_long) [*c]city_info_t {
+pub fn find_city(loc: i64) ?*city_info_t {
     return globals.map[@intCast(loc)].cityp;
 }
 
-pub fn obj_moves(obj: [*c]piece_info_t) c_int {
-    const t: usize = @intCast(obj.*.type);
-    return @divTrunc(@as(c_int, data.piece_attr[t].speed) * obj.*.hits +
-        @as(c_int, data.piece_attr[t].max_hits) - 1, @as(c_int, data.piece_attr[t].max_hits));
+pub fn obj_moves(obj: *const Piece) i32 {
+    const t: usize = @intCast(obj.type);
+    return @divTrunc(@as(i32, data.piece_attr[t].speed) * obj.hits +
+        @as(i32, data.piece_attr[t].max_hits) - 1, @as(i32, data.piece_attr[t].max_hits));
 }
 
-pub fn obj_capacity(obj: [*c]piece_info_t) c_int {
-    const t: usize = @intCast(obj.*.type);
-    return @divTrunc(@as(c_int, data.piece_attr[t].capacity) * obj.*.hits +
-        @as(c_int, data.piece_attr[t].max_hits) - 1, @as(c_int, data.piece_attr[t].max_hits));
+pub fn obj_capacity(obj: *const Piece) i32 {
+    const t: usize = @intCast(obj.type);
+    return @divTrunc(@as(i32, data.piece_attr[t].capacity) * obj.hits +
+        @as(i32, data.piece_attr[t].max_hits) - 1, @as(i32, data.piece_attr[t].max_hits));
 }
 
-pub fn moves(obj: *piece_info_t) c_int {
+pub fn moves(obj: *const Piece) i32 {
     return obj_moves(obj);
 }
 
-pub fn capacity(obj: *piece_info_t) c_int {
+pub fn capacity(obj: *const Piece) i32 {
     return obj_capacity(obj);
 }
 
-pub fn find_obj(@"type": c_int, loc: c_long) [*c]piece_info_t {
-    var p: [*c]piece_info_t = globals.map[@intCast(loc)].objp;
-    while (p != null) : (p = @ptrCast(p.*.loc_link.next)) {
-        if (p.*.type == @"type") return p;
+pub fn find_obj(piece_type: i32, loc: i64) ?*Piece {
+    var idx = globals.map[@intCast(loc)].obj_head;
+    while (idx != NO_PIECE) {
+        const p = &globals.pool[idx];
+        if (p.type == piece_type) return p;
+        idx = p.loc_next;
     }
     return null;
 }
 
-pub fn find_nfull(@"type": c_int, loc: c_long) [*c]piece_info_t {
-    var p: [*c]piece_info_t = globals.map[@intCast(loc)].objp;
-    while (p != null) : (p = @ptrCast(p.*.loc_link.next)) {
-        if (p.*.type == @"type") {
-            if (obj_capacity(p) > p.*.count) return p;
-        }
+pub fn find_nfull(piece_type: i32, loc: i64) ?*Piece {
+    var idx = globals.map[@intCast(loc)].obj_head;
+    while (idx != NO_PIECE) {
+        const p = &globals.pool[idx];
+        if (p.type == piece_type and obj_capacity(p) > p.count) return p;
+        idx = p.loc_next;
     }
     return null;
 }
 
-pub fn find_transport(owner: c_int, loc: c_long) c_long {
+pub fn find_transport(owner: i32, loc: i64) i64 {
     for (0..8) |i| {
-        const new_loc = loc + data.dir_offset[i];
-        const t = find_nfull(TRANSPORT, new_loc);
-        if (t != null and t.*.owner == owner) return new_loc;
+        const new_loc = loc + @as(i64, data.dir_offset[i]);
+        if (find_nfull(TRANSPORT, new_loc)) |t| {
+            if (t.owner == owner) return new_loc;
+        }
     }
     return loc;
 }
 
-pub fn find_obj_at_loc(loc: c_long) [*c]piece_info_t {
-    var best: [*c]piece_info_t = globals.map[@intCast(loc)].objp;
-    if (best == null) return null;
-
-    var p: [*c]piece_info_t = @ptrCast(best.*.loc_link.next);
-    while (p != null) : (p = @ptrCast(p.*.loc_link.next)) {
-        if (p.*.type > best.*.type and p.*.type != SATELLITE) best = p;
+pub fn find_obj_at_loc(loc: i64) ?*Piece {
+    var idx = globals.map[@intCast(loc)].obj_head;
+    if (idx == NO_PIECE) return null;
+    var best = &globals.pool[idx];
+    idx = best.loc_next;
+    while (idx != NO_PIECE) {
+        const p = &globals.pool[idx];
+        if (p.type > best.type and p.type != SATELLITE) best = p;
+        idx = p.loc_next;
     }
     return best;
 }
 
-pub fn disembark(obj: *piece_info_t) void {
-    if (obj.ship != null) {
-        const ship: *piece_info_t = @ptrCast(obj.ship);
-        unlink(&ship.cargo, obj, .cargo_link);
-        ship.count -= 1;
-        obj.ship = null;
-    }
-}
+pub fn kill_obj(obj: *Piece, loc: i64) void {
+    const vmap = ownerMap(obj.owner);
 
-pub fn embark(ship: *piece_info_t, obj: *piece_info_t) void {
-    obj.ship = ship;
-    link(&ship.cargo, obj, .cargo_link);
-    ship.count += 1;
-}
-
-pub fn kill_obj(obj: [*c]piece_info_t, loc: c_long) void {
-    const o: *piece_info_t = @ptrCast(obj);
-    const vmap = ownerMap(o.owner);
-    const list = ownerList(o.owner);
-
-    while (o.cargo != null) {
-        kill_one(list, @ptrCast(o.cargo));
+    // Kill cargo first
+    while (obj.count > 0) {
+        const cargo_idx = obj.cargo[0];
+        kill_one(&globals.pool[cargo_idx]);
     }
 
-    kill_one(list, o);
+    kill_one(obj);
     scan(vmap, loc);
 }
 
-fn kill_one(list: *[NUM_OBJECTS][*c]piece_info_t, obj: *piece_info_t) void {
+fn kill_one(obj: *Piece) void {
+    const idx = pool_indexOf(obj);
     const t: usize = @intCast(obj.type);
-    unlink(&list[t], obj, .piece_link);
-    unlink(&globals.map[@intCast(obj.loc)].objp, obj, .loc_link);
+    loc_unlink(obj.loc, idx);
     disembark(obj);
-
-    link(&globals.free_list, obj, .piece_link);
     obj.hits = 0;
     obj.moved = data.piece_attr[t].speed;
+    pool_kill(idx);
 }
 
-pub fn kill_city(cityp: [*c]city_info_t) void {
-    var p: [*c]piece_info_t = globals.map[@intCast(cityp.*.loc)].objp;
-    while (p != null) {
-        const next_p: [*c]piece_info_t = @ptrCast(p.*.loc_link.next);
+pub fn kill_city(cityp: *city_info_t) void {
+    // Collect all piece indices at this location first (iteration-safe)
+    var pieces: [128]PieceIdx = undefined;
+    var npieces: usize = 0;
+    var idx = globals.map[@intCast(cityp.loc)].obj_head;
+    while (idx != NO_PIECE) {
+        pieces[npieces] = idx;
+        npieces += 1;
+        idx = globals.pool[idx].loc_next;
+    }
 
-        if (p.*.type == ARMY) {
-            kill_obj(p, cityp.*.loc);
-        } else if (p.*.type != SATELLITE) {
-            if (p.*.type == TRANSPORT) {
-                const tlist = ownerList(p.*.owner);
-                while (p.*.cargo != null) {
-                    kill_one(tlist, @ptrCast(p.*.cargo));
+    for (pieces[0..npieces]) |pidx| {
+        const p = &globals.pool[pidx];
+        if (!p.alive) continue;
+
+        if (p.type == ARMY) {
+            kill_obj(p, cityp.loc);
+        } else if (p.type != SATELLITE) {
+            if (p.type == TRANSPORT) {
+                while (p.count > 0) {
+                    kill_one(&globals.pool[p.cargo[0]]);
                 }
             }
-            const list1 = ownerList(p.*.owner);
-            const t: usize = @intCast(p.*.type);
-            unlink(&list1[t], @ptrCast(p), .piece_link);
-            p.*.owner = if (p.*.owner == USER) COMP else USER;
-            const list2 = ownerList(p.*.owner);
-            link(&list2[t], @ptrCast(p), .piece_link);
-
-            p.*.func = NOFUNC;
+            // Transfer ownership
+            p.owner = if (p.owner == USER) COMP else USER;
+            p.func = NOFUNC;
         }
-
-        p = next_p;
     }
 
-    if (cityp.*.owner != UNOWNED) {
-        const vmap = ownerMap(@intCast(cityp.*.owner));
-        cityp.*.owner = UNOWNED;
-        cityp.*.work = 0;
-        cityp.*.prod = @intCast(NOPIECE);
+    if (cityp.owner != UNOWNED) {
+        const vmap = ownerMap(@intCast(cityp.owner));
+        cityp.owner = UNOWNED;
+        cityp.work = 0;
+        cityp.prod = @intCast(NOPIECE);
 
         for (0..NUM_OBJECTS) |i| {
-            cityp.*.func[i] = NOFUNC;
+            cityp.func[i] = NOFUNC;
         }
 
-        scan(vmap, cityp.*.loc);
+        scan(vmap, cityp.loc);
     }
 }
 
-pub fn produce(cityp: [*c]city_info_t) void {
-    const list = ownerList(@intCast(cityp.*.owner));
-    const prod: usize = @intCast(cityp.*.prod);
+pub fn produce(cityp: *city_info_t) void {
+    const prod: usize = @intCast(cityp.prod);
+    cityp.work -= data.piece_attr[prod].build_time;
 
-    cityp.*.work -= data.piece_attr[prod].build_time;
+    std.debug.assert(globals.free_count > 0);
+    const new_idx = pool_spawn();
+    const new_piece = &globals.pool[new_idx];
 
-    std.debug.assert(globals.free_list != null);
-    const new_piece: *piece_info_t = @ptrCast(globals.free_list);
-    unlink(&globals.free_list, new_piece, .piece_link);
-    link(&list[prod], new_piece, .piece_link);
-    link(&globals.map[@intCast(cityp.*.loc)].objp, new_piece, .loc_link);
-    new_piece.cargo_link.next = null;
-    new_piece.cargo_link.prev = null;
-
-    new_piece.loc = cityp.*.loc;
+    new_piece.loc = cityp.loc;
     new_piece.func = NOFUNC;
     new_piece.hits = data.piece_attr[prod].max_hits;
-    new_piece.owner = @intCast(cityp.*.owner);
-    new_piece.type = cityp.*.prod;
+    new_piece.owner = @intCast(cityp.owner);
+    new_piece.type = cityp.prod;
     new_piece.moved = 0;
-    new_piece.cargo = null;
-    new_piece.ship = null;
+    new_piece.ship = NO_PIECE;
     new_piece.count = 0;
     new_piece.range = @truncate(data.piece_attr[prod].range);
 
     if (new_piece.type == SATELLITE) {
         new_piece.func = sat_dir[@intCast(math.irand(4))];
     }
+
+    loc_link(cityp.loc, new_idx);
 }
 
-pub fn move_obj(obj: [*c]piece_info_t, new_loc: c_long) void {
-    const o: *piece_info_t = @ptrCast(obj);
-    std.debug.assert(o.hits > 0);
-    const vmap = ownerMap(o.owner);
+pub fn move_obj(obj: *Piece, new_loc: i64) void {
+    std.debug.assert(obj.hits > 0);
+    const vmap = ownerMap(obj.owner);
+    const idx = pool_indexOf(obj);
 
-    const old_loc = o.loc;
-    o.moved += 1;
-    o.loc = new_loc;
-    o.range -= 1;
+    const old_loc = obj.loc;
+    obj.moved += 1;
+    obj.loc = new_loc;
+    obj.range -= 1;
 
-    disembark(o);
+    disembark(obj);
 
-    unlink(&globals.map[@intCast(old_loc)].objp, o, .loc_link);
-    link(&globals.map[@intCast(new_loc)].objp, o, .loc_link);
+    loc_unlink(old_loc, idx);
+    loc_link(new_loc, idx);
 
-    // move any objects contained in object
-    var p: [*c]piece_info_t = o.cargo;
-    while (p != null) : (p = @ptrCast(p.*.cargo_link.next)) {
-        p.*.loc = new_loc;
-        unlink(&globals.map[@intCast(old_loc)].objp, @ptrCast(p), .loc_link);
-        link(&globals.map[@intCast(new_loc)].objp, @ptrCast(p), .loc_link);
+    // Move cargo
+    var i: usize = 0;
+    while (i < @as(usize, @intCast(obj.count))) : (i += 1) {
+        const cargo_idx = obj.cargo[i];
+        const cargo_piece = &globals.pool[cargo_idx];
+        cargo_piece.loc = new_loc;
+        loc_unlink(old_loc, cargo_idx);
+        loc_link(new_loc, cargo_idx);
     }
 
-    // board new ship
-    switch (o.type) {
+    // Board new ship
+    switch (obj.type) {
         FIGHTER => {
-            if (globals.map[@intCast(o.loc)].cityp == null) {
-                const carrier = find_nfull(CARRIER, o.loc);
-                if (carrier != null) embark(@ptrCast(carrier), o);
+            if (globals.map[@intCast(obj.loc)].cityp == null) {
+                if (find_nfull(CARRIER, obj.loc)) |carrier| {
+                    embark(carrier, obj);
+                }
             }
         },
         ARMY => {
-            const transport = find_nfull(TRANSPORT, o.loc);
-            if (transport != null) embark(@ptrCast(transport), o);
+            if (find_nfull(TRANSPORT, obj.loc)) |transport| {
+                embark(transport, obj);
+            }
         },
         else => {},
     }
 
-    if (o.type == SATELLITE) scan_sat(vmap, o.loc);
-    scan(vmap, o.loc);
+    if (obj.type == SATELLITE) scan_sat(vmap, obj.loc);
+    update(vmap, old_loc);
+    scan(vmap, obj.loc);
 }
 
-fn bounce(loc: c_long, dir1: c_long, dir2: c_long, dir3: c_long) c_long {
-    var new_loc = loc + data.dir_offset[moveDir(dir1)];
+fn bounce(loc: i64, dir1: i64, dir2: i64, dir3: i64) i64 {
+    var new_loc = loc + @as(i64, data.dir_offset[moveDir(dir1)]);
     if (globals.map[@intCast(new_loc)].on_board) return dir1;
 
-    new_loc = loc + data.dir_offset[moveDir(dir2)];
+    new_loc = loc + @as(i64, data.dir_offset[moveDir(dir2)]);
     if (globals.map[@intCast(new_loc)].on_board) return dir2;
 
     return dir3;
 }
 
-fn move_sat1(obj: *piece_info_t) void {
+fn move_sat1(obj: *Piece) void {
     var dir = moveDir(obj.func);
-    var new_loc = obj.loc + data.dir_offset[dir];
+    var new_loc = obj.loc + @as(i64, data.dir_offset[dir]);
 
     if (!globals.map[@intCast(new_loc)].on_board) {
         if (obj.func == MOVE_NE) {
@@ -358,159 +396,150 @@ fn move_sat1(obj: *piece_info_t) void {
             unreachable;
         }
         dir = moveDir(obj.func);
-        new_loc = obj.loc + data.dir_offset[dir];
+        new_loc = obj.loc + @as(i64, data.dir_offset[dir]);
     }
     move_obj(obj, new_loc);
 }
 
-pub fn move_sat(obj: [*c]piece_info_t) void {
-    const o: *piece_info_t = @ptrCast(obj);
-    o.moved = 0;
+pub fn move_sat(obj: *Piece) void {
+    obj.moved = 0;
 
-    while (o.moved < obj_moves(obj)) {
-        move_sat1(o);
-        if (o.range == 0) {
-            if (o.owner == USER)
-                terminal.comment("Satellite at %d crashed and burned.", terminal.loc_disp(@intCast(o.loc)));
-            terminal.ksend("Satellite at %d crashed and burned.", terminal.loc_disp(@intCast(o.loc)));
-            kill_obj(obj, o.loc);
+    while (obj.moved < obj_moves(obj)) {
+        move_sat1(obj);
+        if (obj.range == 0) {
+            if (obj.owner == USER)
+                terminal.comment("Satellite at {d} crashed and burned.", .{terminal.loc_disp(@intCast(obj.loc))});
+            terminal.ksend("Satellite at {d} crashed and burned.", .{terminal.loc_disp(@intCast(obj.loc))});
+            kill_obj(obj, obj.loc);
             return;
         }
     }
 }
 
-pub fn good_loc(obj: [*c]piece_info_t, loc: c_long) bool {
+pub fn good_loc(obj: *const Piece, loc: i64) bool {
     const uloc: usize = @intCast(loc);
     if (!globals.map[uloc].on_board) return false;
 
-    const vmap = ownerMap(obj.*.owner);
-    const t: usize = @intCast(obj.*.type);
+    const vmap = ownerMap(obj.owner);
+    const t: usize = @intCast(obj.type);
     const terrain = &data.piece_attr[t].terrain;
     const contents = vmap[@intCast(loc)].contents;
 
-    // check if terrain matches
     for (terrain) |ch| {
         if (ch == 0) break;
         if (ch == contents) return true;
     }
 
-    // armies can move into unfull transports
-    if (obj.*.type == ARMY) {
+    if (obj.type == ARMY) {
         const p = find_nfull(TRANSPORT, loc);
-        return (p != null and p.*.owner == obj.*.owner);
+        return (p != null and p.?.owner == obj.owner);
     }
 
-    // ships and fighters can move into cities
-    if (globals.map[uloc].cityp != null and globals.map[uloc].cityp.*.owner == @as(u8, @intCast(obj.*.owner)))
-        return true;
+    if (globals.map[uloc].cityp) |cp| {
+        if (cp.owner == @as(u8, @intCast(obj.owner))) return true;
+    }
 
-    // fighters can move onto unfull carriers
-    if (obj.*.type == FIGHTER) {
+    if (obj.type == FIGHTER) {
         const p = find_nfull(CARRIER, loc);
-        return (p != null and p.*.owner == obj.*.owner);
+        return (p != null and p.?.owner == obj.owner);
     }
 
     return false;
 }
 
-pub fn describe_obj(obj: [*c]piece_info_t) void {
-    var func_buf: [STRSIZE]u8 = undefined;
-    var other: [STRSIZE]u8 = undefined;
+pub fn describe_obj(obj: *const Piece) void {
+    const ti: usize = @intCast(obj.type);
+    const name = std.mem.sliceTo(&data.piece_attr[ti].name, 0);
+    const loc = terminal.loc_disp(@intCast(obj.loc));
+    const remaining_moves = obj_moves(obj) - obj.moved;
 
-    if (obj.*.func >= 0) {
-        _ = c.snprintf(&func_buf, STRSIZE, "%d", terminal.loc_disp(@intCast(obj.*.func)));
-    } else {
-        _ = c.snprintf(&func_buf, STRSIZE, "%s", data.func_name[funci(obj.*.func)]);
-    }
+    var func_buf: [64]u8 = undefined;
+    const func_str = if (obj.func >= 0)
+        std.fmt.bufPrintZ(&func_buf, "{d}", .{terminal.loc_disp(@intCast(obj.func))}) catch ""
+    else
+        std.fmt.bufPrintZ(&func_buf, "{s}", .{data.func_name[funci(obj.func)]}) catch "";
 
-    other[0] = 0;
+    var other_buf: [64]u8 = undefined;
+    const other_str = if (obj.type == FIGHTER)
+        std.fmt.bufPrintZ(&other_buf, "; range = {d}", .{obj.range}) catch ""
+    else if (obj.type == TRANSPORT)
+        std.fmt.bufPrintZ(&other_buf, "; armies = {d}", .{obj.count}) catch ""
+    else if (obj.type == CARRIER)
+        std.fmt.bufPrintZ(&other_buf, "; fighters = {d}", .{obj.count}) catch ""
+    else
+        "";
 
-    const t = obj.*.type;
-    if (t == FIGHTER) {
-        _ = c.snprintf(&other, STRSIZE, "; range = %d", @as(c_int, obj.*.range));
-    } else if (t == TRANSPORT) {
-        _ = c.snprintf(&other, STRSIZE, "; armies = %d", @as(c_int, obj.*.count));
-    } else if (t == CARRIER) {
-        _ = c.snprintf(&other, STRSIZE, "; fighters = %d", @as(c_int, obj.*.count));
-    }
-
-    const ti: usize = @intCast(t);
-    terminal.prompt(
-        "%s at %d:  moves = %d; hits = %d; func = %s%s",
-        @as([*c]const u8, &data.piece_attr[ti].name),
-        terminal.loc_disp(@intCast(obj.*.loc)),
-        obj_moves(obj) - obj.*.moved,
-        @as(c_int, obj.*.hits),
-        @as([*c]const u8, &func_buf),
-        @as([*c]const u8, &other),
-    );
+    var buf: [STRSIZE]u8 = undefined;
+    const s = std.fmt.bufPrintZ(&buf, "{s} at {d}:  moves = {d}; hits = {d}; func = {s}{s}", .{
+        name, loc, remaining_moves, @as(i32, obj.hits), func_str, other_str,
+    }) catch return;
+    terminal.writeTopmsg(1, s);
 }
 
-pub fn scan(vmap: [*c]view_map_t, loc: c_long) void {
+pub fn scan(vmap: *[MAP_SIZE]view_map_t, loc: i64) void {
     std.debug.assert(globals.map[@intCast(loc)].on_board);
 
     for (0..8) |i| {
-        const xloc = loc + data.dir_offset[i];
+        const xloc = loc + @as(i64, data.dir_offset[i]);
         update(vmap, xloc);
     }
     update(vmap, loc);
 }
 
-fn scan_sat(vmap: [*c]view_map_t, loc: c_long) void {
+fn scan_sat(vmap: *[MAP_SIZE]view_map_t, loc: i64) void {
     std.debug.assert(globals.map[@intCast(loc)].on_board);
 
     for (0..8) |i| {
-        const xloc = loc + 2 * data.dir_offset[i];
+        const xloc = loc + @as(i64, 2 * data.dir_offset[i]);
         if (xloc >= 0 and xloc < MAP_SIZE and globals.map[@intCast(xloc)].on_board)
             scan(vmap, xloc);
     }
     scan(vmap, loc);
 }
 
-fn update(vmap: [*c]view_map_t, loc: c_long) void {
+fn update(vmap: *[MAP_SIZE]view_map_t, loc: i64) void {
     const uloc: usize = @intCast(loc);
     vmap[uloc].seen = globals.date;
 
-    if (globals.map[uloc].cityp != null) {
-        vmap[uloc].contents = city_char[globals.map[uloc].cityp.*.owner];
+    if (globals.map[uloc].cityp) |cp| {
+        vmap[uloc].contents = city_char[cp.owner];
     } else {
         const p = find_obj_at_loc(loc);
         if (p == null) {
             vmap[uloc].contents = globals.map[uloc].contents;
-        } else if (p.*.owner == USER) {
-            vmap[uloc].contents = data.piece_attr[@intCast(p.*.type)].sname;
+        } else if (p.?.owner == USER) {
+            vmap[uloc].contents = data.piece_attr[@intCast(p.?.type)].sname;
         } else {
-            vmap[uloc].contents = data.piece_attr[@intCast(p.*.type)].sname | 0x20;
+            vmap[uloc].contents = data.piece_attr[@intCast(p.?.type)].sname | 0x20;
         }
     }
 
-    if (vmap == @as([*c]view_map_t, &globals.comp_map))
+    if (vmap == &globals.comp_map)
         display.display_locx(COMP, &globals.comp_map, loc)
-    else if (vmap == @as([*c]view_map_t, &globals.user_map))
+    else if (vmap == &globals.user_map)
         display.display_locx(USER, &globals.user_map, loc);
 }
 
-pub fn set_prod(cityp: [*c]city_info_t) void {
-    scan(&globals.user_map, cityp.*.loc);
-    display.display_loc_u(cityp.*.loc);
+pub fn set_prod(cityp: *city_info_t) void {
+    scan(&globals.user_map, cityp.loc);
+    display.display_loc_u(cityp.loc);
 
     while (true) {
-        terminal.prompt("What do you want the city at %d to produce? ",
-            terminal.loc_disp(@intCast(cityp.*.loc)));
+        terminal.prompt("What do you want the city at {d} to produce? ", .{terminal.loc_disp(@intCast(cityp.loc))});
 
         const i = get_piece_name();
 
         if (i == NOPIECE) {
-            terminal.@"error"("I don't know how to build those.");
+            terminal.@"error"("I don't know how to build those.", .{});
         } else {
-            cityp.*.prod = @intCast(i);
-            cityp.*.work = -@divTrunc(@as(c_long, data.piece_attr[@intCast(i)].build_time), 5);
+            cityp.prod = @intCast(i);
+            cityp.work = -@divTrunc(@as(i64, data.piece_attr[@intCast(i)].build_time), 5);
             return;
         }
     }
 }
 
-pub fn get_piece_name() c_int {
+pub fn get_piece_name() i32 {
     const ch = terminal.get_chx();
 
     for (0..NUM_OBJECTS) |i| {
@@ -519,4 +548,98 @@ pub fn get_piece_name() c_int {
         }
     }
     return NOPIECE;
+}
+
+// ── Rebuild helpers (for save/restore) ──────────────────────────────────
+
+pub fn rebuild_loc_chains() void {
+    // Clear all obj_head
+    for (0..MAP_SIZE) |i| {
+        globals.map[i].obj_head = NO_PIECE;
+    }
+    // Clear all loc_next
+    for (0..LIST_SIZE) |i| {
+        globals.pool[i].loc_next = NO_PIECE;
+    }
+    // Build chains from alive pieces
+    for (0..LIST_SIZE) |i| {
+        if (globals.pool[i].alive) {
+            loc_link(globals.pool[i].loc, @intCast(i));
+        }
+    }
+}
+
+pub fn refresh_view_maps() void {
+    for (0..MAP_SIZE) |i| {
+        if (globals.user_map[i].seen > 0) {
+            update(&globals.user_map, @intCast(i));
+        }
+        if (globals.comp_map[i].seen > 0) {
+            update(&globals.comp_map, @intCast(i));
+        }
+    }
+}
+
+pub fn rebuild_free_stack() void {
+    globals.free_count = 0;
+    for (0..LIST_SIZE) |i| {
+        if (!globals.pool[i].alive) {
+            globals.free_stack[globals.free_count] = @intCast(i);
+            globals.free_count += 1;
+        }
+    }
+}
+
+pub fn rebuild_cargo() void {
+    // Clear all cargo arrays and counts
+    for (0..LIST_SIZE) |i| {
+        globals.pool[i].cargo = [_]PieceIdx{NO_PIECE} ** types.MAX_CARGO;
+        // Note: don't clear count here - we need it for validation
+    }
+
+    // Build cargo arrays from ship references
+    for (0..LIST_SIZE) |i| {
+        if (globals.pool[i].alive and globals.pool[i].ship != NO_PIECE) {
+            const ship = &globals.pool[globals.pool[i].ship];
+            // Find first empty cargo slot
+            for (0..types.MAX_CARGO) |ci| {
+                if (ship.cargo[ci] == NO_PIECE) {
+                    ship.cargo[ci] = @intCast(i);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+pub fn rebuild_embark() void {
+    // Clear ship references and cargo
+    for (0..LIST_SIZE) |i| {
+        globals.pool[i].ship = NO_PIECE;
+        globals.pool[i].cargo = [_]PieceIdx{NO_PIECE} ** types.MAX_CARGO;
+    }
+
+    // Re-embark based on count fields (same logic as old read_embark)
+    for (0..LIST_SIZE) |ship_i| {
+        const ship = &globals.pool[ship_i];
+        if (!ship.alive) continue;
+        if (ship.type != TRANSPORT and ship.type != CARRIER) continue;
+
+        const cargo_type: i32 = if (ship.type == TRANSPORT) ARMY else FIGHTER;
+        var remaining = ship.count;
+        ship.count = 0;
+
+        if (remaining <= 0) continue;
+
+        // Find matching pieces at the same location
+        var idx = globals.map[@intCast(ship.loc)].obj_head;
+        while (idx != NO_PIECE and remaining > 0) {
+            const p = &globals.pool[idx];
+            idx = p.loc_next;
+            if (p.ship == NO_PIECE and p.type == cargo_type and p.alive) {
+                embark(ship, p);
+                remaining -= 1;
+            }
+        }
+    }
 }

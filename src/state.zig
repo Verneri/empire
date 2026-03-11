@@ -15,14 +15,18 @@ const math = @import("math.zig");
 const attack = @import("attack.zig");
 const vx = @import("vx.zig");
 
-const piece_info_t = types.piece_info_t;
+const Piece = types.Piece;
+const PieceIdx = types.PieceIdx;
+const NO_PIECE = types.NO_PIECE;
 const city_info_t = types.city_info_t;
 
 const STRSIZE = globals.STRSIZE;
 const NUM_OBJECTS = globals.NUM_OBJECTS;
 const NUM_SECTORS = globals.NUM_SECTORS;
-const NOPIECE: c_int = @intFromEnum(globals.PieceType.NoPiece);
+const LIST_SIZE = globals.LIST_SIZE;
+const NOPIECE: i32 = @intFromEnum(globals.PieceType.NoPiece);
 const USER = @intFromEnum(globals.Ownership.User);
+const SATELLITE = @intFromEnum(globals.PieceType.Satellite);
 
 // ── Frame union ─────────────────────────────────────────────────────────
 
@@ -46,30 +50,30 @@ pub const Frame = union(enum) {
 pub const UserMoveCtx = struct {
     sector_idx: usize,
     obj_type_idx: usize,
-    cur_obj: ?*piece_info_t,
+    pool_idx: usize,
     phase: enum { pre_produce, satellites, iterating, post },
     start: usize,
     city_idx: usize,
-    cur_satellite: ?*piece_info_t,
+    sat_pool_idx: usize,
     automove_loop: bool,
 };
 
 pub const PieceMoveCtx = struct {
-    obj: *piece_info_t,
+    obj: *Piece,
     changed_location: bool,
     need_input: bool,
 };
 
 pub const AskUserCtx = struct {
-    obj: *piece_info_t,
+    obj: *Piece,
     sub: AskUserSub = .command,
 
     const AskUserSub = union(enum) {
         command,
         awaiting_direction, // 'I' command: waiting for direction key
-        awaiting_piece_name: struct { cityp: [*c]city_info_t }, // 'V' command step 1
-        awaiting_city_func: struct { cityp: [*c]city_info_t, piece_t: c_int }, // 'V' step 2
-        awaiting_city_stasis_dir: struct { cityp: [*c]city_info_t, piece_t: c_int }, // 'V' then 'I' step 3
+        awaiting_piece_name: struct { cityp: *city_info_t }, // 'V' command step 1
+        awaiting_city_func: struct { cityp: *city_info_t, piece_t: i32 }, // 'V' step 2
+        awaiting_city_stasis_dir: struct { cityp: *city_info_t, piece_t: i32 }, // 'V' then 'I' step 3
     };
 };
 
@@ -88,41 +92,41 @@ pub const YesNoAction = enum {
 
 pub const YesNoCtx = struct {
     action: YesNoAction,
-    obj: ?*piece_info_t,
-    loc: c_long,
-    response_msg: ?[*c]const u8,
+    obj: ?*Piece,
+    loc: i64,
+    response_msg: ?[*:0]const u8,
     /// If true, N pops yes_no and stays in ask_user. If false, N finishes ask_user.
     stay_in_ask_on_no: bool,
 };
 
 pub const SetProdCtx = struct {
-    cityp: [*c]city_info_t,
+    cityp: *city_info_t,
     caller: enum { user_move_production, user_build, edit_prod, city_attack },
 };
 
 pub const EditCtx = struct {
-    edit_cursor: c_long,
-    path_start: c_long,
-    path_type: c_int,
+    edit_cursor: i64,
+    path_start: i64,
+    path_type: i32,
     sub: EditSub = .input,
 
     const EditSub = union(enum) {
         input,
         awaiting_stasis_dir,
-        awaiting_piece_name: struct { cityp: [*c]city_info_t },
-        awaiting_city_func: struct { cityp: [*c]city_info_t, piece_t: c_int },
-        awaiting_city_stasis_dir: struct { cityp: [*c]city_info_t, piece_t: c_int },
+        awaiting_piece_name: struct { cityp: *city_info_t },
+        awaiting_city_func: struct { cityp: *city_info_t, piece_t: i32 },
+        awaiting_city_stasis_dir: struct { cityp: *city_info_t, piece_t: i32 },
     };
 };
 
 pub const GetRangeCtx = struct {
-    low: c_int,
-    high: c_int,
+    low: i32,
+    high: i32,
     buf: [STRSIZE]u8 = std.mem.zeroes([STRSIZE]u8),
     len: usize = 0,
     cursor_x: u16 = 0,
     cursor_y: u16 = 0,
-    message: [*c]const u8,
+    message: [*:0]const u8,
     caller: GetRangeCaller,
 
     const GetRangeCaller = enum { sector, examine, edit_sector, free_moves };
@@ -143,11 +147,11 @@ pub const DebugInputCtx = struct {
 };
 
 pub const DelayCtx = struct {
-    remaining_ms: c_int,
+    remaining_ms: i32,
     last_tick: i128,
-    cursor_col: c_int,
-    cursor_row: c_int,
-    next_star_ms: c_int, // countdown to next asterisk
+    cursor_col: i32,
+    cursor_row: i32,
+    next_star_ms: i32, // countdown to next asterisk
 };
 
 // ── Stack ───────────────────────────────────────────────────────────────
@@ -181,7 +185,7 @@ pub var stack: Stack = .{};
 var automove_turn: u16 = 0;
 
 // ── Blink state ─────────────────────────────────────────────────────────
-var blink_loc: c_long = -1; // location to blink, -1 = none
+var blink_loc: i64 = -1; // location to blink, -1 = none
 var blink_reverse: bool = false; // current toggle state
 var blink_last_toggle: i128 = 0; // timestamp of last toggle
 
@@ -223,7 +227,7 @@ pub fn tick() void {
         const now = std.time.nanoTimestamp();
         const elapsed_ns = now - ctx.last_tick;
         ctx.last_tick = now;
-        const elapsed_ms: c_int = @intCast(@min(@divTrunc(elapsed_ns, std.time.ns_per_ms), 100000));
+        const elapsed_ms: i32 = @intCast(@min(@divTrunc(elapsed_ns, std.time.ns_per_ms), 100000));
         ctx.remaining_ms -= elapsed_ms;
         ctx.next_star_ms -= elapsed_ms;
 
@@ -262,7 +266,7 @@ pub fn hasActiveTimer() bool {
 }
 
 fn pushDelay() void {
-    const row: c_int = @intCast(vx.lines() - 1);
+    const row: i32 = @intCast(vx.lines() - 1);
     stack.push(.{ .delay = .{
         .remaining_ms = globals.delay_time,
         .last_tick = std.time.nanoTimestamp(),
@@ -273,10 +277,21 @@ fn pushDelay() void {
     terminal.clear_need_delay();
 }
 
+pub fn redrawScreen() void {
+    // display.kill_display() was already called by the caller,
+    // so cur_sector() == -1. Find what to display.
+    if (blink_loc >= 0) {
+        // Active unit blinking — redraw its sector
+        display.display_loc_u(blink_loc);
+    } else {
+        showIdlePrompt();
+    }
+}
+
 pub fn showIdlePrompt() void {
     if (display.cur_sector() == -1) {
         // No sector displayed — find a user city and show its sector
-        var sector: c_int = 0;
+        var sector: i32 = 0;
         for (&globals.city) |*city| {
             if (city.owner == @intFromEnum(globals.Ownership.User)) {
                 sector = util.loc_sector(city.loc);
@@ -285,9 +300,9 @@ pub fn showIdlePrompt() void {
         }
         display.print_sector_u(sector);
     }
-    terminal.prompt("");
+    terminal.prompt("", .{});
     display.redisplay();
-    terminal.prompt("Your orders? ");
+    terminal.prompt("Your orders? ", .{});
 }
 
 // ── Idle key handler ────────────────────────────────────────────────────
@@ -297,12 +312,12 @@ fn handleIdleKey(key: vx.Key) void {
     switch (ch) {
         'A' => {
             globals.automove = true;
-            terminal.error_msg("Now in Auto-Mode");
+            terminal.@"error"("Now in Auto-Mode", .{});
             automove_turn = 0;
             startUserMove(true);
         },
         'C' => c_give(),
-        'D' => terminal.fmt_error("Round #%d", .{globals.date}),
+        'D' => terminal.@"error"("Round #{d}", .{globals.date}),
         'E' => {
             if (globals.resigned) {
                 pushGetRange("Sector number? ", 0, NUM_SECTORS - 1, .examine);
@@ -328,7 +343,7 @@ fn handleIdleKey(key: vx.Key) void {
         'N' => pushGetRange("Number of free enemy moves: ", 0, 9999, .free_moves),
         'P' => pushGetRange("Sector number? ", 0, NUM_SECTORS - 1, .sector),
         22, 'Q' => {
-            terminal.prompt("QUIT - Are you sure? ");
+            terminal.prompt("QUIT - Are you sure? ", .{});
             stack.push(.{ .yes_no = .{
                 .action = .quit,
                 .obj = null,
@@ -346,16 +361,16 @@ fn handleIdleKey(key: vx.Key) void {
         'T' => {
             globals.save_movie = !globals.save_movie;
             if (globals.save_movie) {
-                terminal.comment("Saving movie screens to 'empmovie.dat'.");
+                terminal.comment("Saving movie screens to 'empmovie.dat'.", .{});
             } else {
-                terminal.comment("No longer saving movie screens.");
+                terminal.comment("No longer saving movie screens.", .{});
             }
         },
         'W' => {
             if (globals.resigned or globals.debug) {
                 game.replay_movie();
             } else {
-                terminal.error_msg("You cannot watch movie until computer resigns.");
+                terminal.@"error"("You cannot watch movie until computer resigns.", .{});
             }
         },
         'Z' => display.print_zoom(&globals.user_map),
@@ -424,12 +439,11 @@ fn handleHelpScreenPop() void {
 // ── User move flow ──────────────────────────────────────────────────────
 
 fn startUserMove(automove_loop: bool) void {
-    // Reset moved for units
-    for (globals.user_obj) |obj| {
-        var cur: ?*types.struct_piece_info = obj;
-        while (cur != null) : (cur = cur.?.piece_link.next) {
-            cur.?.moved = 0;
-            object.scan(&globals.user_map, cur.?.loc);
+    // Reset moved for units (pool scan instead of linked list)
+    for (&globals.pool) |*piece| {
+        if (piece.alive and piece.owner == USER) {
+            piece.moved = 0;
+            object.scan(&globals.user_map, piece.loc);
         }
     }
 
@@ -440,11 +454,11 @@ fn startUserMove(automove_loop: bool) void {
     stack.push(.{ .user_move = .{
         .sector_idx = start,
         .obj_type_idx = 0,
-        .cur_obj = null,
+        .pool_idx = 0,
         .phase = .pre_produce,
         .start = start,
         .city_idx = 0,
-        .cur_satellite = globals.user_obj[@intFromEnum(globals.PieceType.Satellite)],
+        .sat_pool_idx = 0,
         .automove_loop = automove_loop,
     } });
     advanceUserMove();
@@ -469,9 +483,11 @@ fn advanceUserMove() void {
                         return; // wait for set_prod key
                     } else {
                         city.work += 1;
-                        if (city.work >= data.piece_attr[prod].build_time) {
-                            terminal.ksend("%s has been completed at city %d.\n", &data.piece_attr[prod].article, terminal.loc_disp(@as(c_int, @bitCast(@as(c_int, @truncate(city.loc))))));
-                            terminal.comment("%s has been completed at city %d.\n", &data.piece_attr[prod].article, terminal.loc_disp(@as(c_int, @bitCast(@as(c_int, @truncate(city.loc))))));
+                        if (city.work >= data.piece_attr[@intCast(prod)].build_time) {
+                            const article = std.mem.sliceTo(&data.piece_attr[@intCast(prod)].article, 0);
+                            const loc_d = terminal.loc_disp(@intCast(city.loc));
+                            terminal.ksend("{s} has been completed at city {d}.\n", .{ article, loc_d });
+                            terminal.comment("{s} has been completed at city {d}.", .{ article, loc_d });
                             object.produce(city);
                         }
                     }
@@ -482,42 +498,42 @@ fn advanceUserMove() void {
             return advanceUserMove();
         },
         .satellites => {
-            while (ctx.cur_satellite != null) {
-                const sat = ctx.cur_satellite.?;
-                ctx.cur_satellite = sat.piece_link.next;
-                object.move_sat(sat);
+            while (ctx.sat_pool_idx < LIST_SIZE) {
+                const piece = &globals.pool[ctx.sat_pool_idx];
+                ctx.sat_pool_idx += 1;
+                if (piece.alive and piece.owner == USER and piece.type == SATELLITE) {
+                    object.move_sat(piece);
+                }
             }
             ctx.phase = .iterating;
             ctx.sector_idx = ctx.start;
             ctx.obj_type_idx = 0;
-            ctx.cur_obj = null;
+            ctx.pool_idx = 0;
             return advanceUserMove();
         },
         .iterating => {
             const end = ctx.start + globals.NUM_SECTORS;
             while (ctx.sector_idx < end) {
                 const sec = @rem(ctx.sector_idx, globals.NUM_SECTORS);
-                if (ctx.obj_type_idx == 0 and ctx.cur_obj == null) {
+                if (ctx.obj_type_idx == 0 and ctx.pool_idx == 0) {
                     display.sector_change();
                 }
 
                 while (ctx.obj_type_idx < globals.NUM_OBJECTS) {
                     const j = data.move_order[ctx.obj_type_idx];
-                    if (ctx.cur_obj == null) {
-                        ctx.cur_obj = globals.user_obj[@as(usize, @intCast(j))];
-                    }
 
-                    while (ctx.cur_obj != null) {
-                        const obj = ctx.cur_obj.?;
-                        ctx.cur_obj = obj.piece_link.next;
-
-                        if (obj.moved == 0 and util.loc_sector(obj.loc) == sec) {
-                            pushPieceMove(obj);
+                    while (ctx.pool_idx < LIST_SIZE) {
+                        const piece = &globals.pool[ctx.pool_idx];
+                        ctx.pool_idx += 1;
+                        if (piece.alive and piece.owner == USER and piece.type == j and
+                            piece.moved == 0 and util.loc_sector(piece.loc) == sec)
+                        {
+                            pushPieceMove(piece);
                             return; // resume when piece_move completes
                         }
                     }
                     ctx.obj_type_idx += 1;
-                    ctx.cur_obj = null;
+                    ctx.pool_idx = 0;
                 }
 
                 if (display.cur_sector() == sec) {
@@ -527,7 +543,7 @@ fn advanceUserMove() void {
 
                 ctx.sector_idx += 1;
                 ctx.obj_type_idx = 0;
-                ctx.cur_obj = null;
+                ctx.pool_idx = 0;
             }
             ctx.phase = .post;
             return advanceUserMove();
@@ -557,10 +573,9 @@ fn advanceUserMove() void {
 
 // ── Piece move ──────────────────────────────────────────────────────────
 
-fn pushPieceMove(obj: *piece_info_t) void {
-    const city: ?*types.struct_city_info = object.find_city(obj.loc);
-    if (city) |c| {
-        const city_func = c.func[@intCast(obj.type)];
+fn pushPieceMove(obj: *Piece) void {
+    if (object.find_city(obj.loc)) |cp| {
+        const city_func = cp.func[@intCast(obj.type)];
         if (city_func != @intFromEnum(globals.Function.NoFunc)) {
             obj.*.func = city_func;
         }
@@ -624,9 +639,9 @@ fn advancePieceMove() void {
                 obj.*.range = @intCast(obj_attr.range);
                 obj.*.moved = obj_attr.speed;
                 obj.*.func = @intFromEnum(globals.Function.NoFunc);
-                terminal.comment("Landing confirmed");
+                terminal.comment("Landing confirmed", .{});
             } else if (obj.range == 0) {
-                terminal.comment("Fighter at %d crashed and burned.", terminal.loc_disp(@intCast(obj.loc)));
+                terminal.comment("Fighter at {d} crashed and burned.", .{terminal.loc_disp(@intCast(obj.loc))});
             }
         }
 
@@ -649,7 +664,7 @@ fn advancePieceMove() void {
 
 // ── Ask user ────────────────────────────────────────────────────────────
 
-fn redisplayAskUser(obj: *piece_info_t) void {
+fn redisplayAskUser(obj: *Piece) void {
     display.display_loc_u(obj.loc);
     object.describe_obj(obj);
     display.display_score();
@@ -678,7 +693,7 @@ fn handleAskUserKey(key: vx.Key) void {
         },
         .awaiting_piece_name => {
             const ch = upperKey(key);
-            var found: c_int = NOPIECE;
+            var found: i32 = NOPIECE;
             for (0..NUM_OBJECTS) |i| {
                 if (data.piece_attr[i].sname == ch) {
                     found = @intCast(i);
@@ -714,9 +729,9 @@ fn handleAskUserKey(key: vx.Key) void {
         .awaiting_city_stasis_dir => |info| {
             const ch = upperKey(key);
             const dirs = "WEDCXZAQ";
-            const MOVE_N_VAL = @as(c_long, @intFromEnum(globals.Function.Move_N));
+            const MOVE_N_VAL = @as(i64, @intFromEnum(globals.Function.Move_N));
             if (std.mem.indexOfScalar(u8, dirs, ch)) |i| {
-                edit.e_set_city_func(info.cityp, info.piece_t, MOVE_N_VAL - @as(c_long, @intCast(i)));
+                edit.e_set_city_func(info.cityp, info.piece_t, MOVE_N_VAL - @as(i64, @intCast(i)));
             } else {
                 display.complain();
             }
@@ -726,7 +741,7 @@ fn handleAskUserKey(key: vx.Key) void {
     }
 }
 
-fn handleAskUserCommand(ctx: *AskUserCtx, obj: *piece_info_t, key: vx.Key) void {
+fn handleAskUserCommand(ctx: *AskUserCtx, obj: *Piece, key: vx.Key) void {
     const ch = upperKey(key);
     switch (ch) {
         'Q' => askUserDirection(obj, .Northwest),
@@ -742,11 +757,14 @@ fn handleAskUserCommand(ctx: *AskUserCtx, obj: *piece_info_t, key: vx.Key) void 
             pushEditMode(obj.loc);
         },
         'V' => {
-            const cityp = object.find_city(obj.loc);
-            if (cityp == null or cityp.*.owner != USER) {
-                display.complain();
+            if (object.find_city(obj.loc)) |cp| {
+                if (cp.owner != USER) {
+                    display.complain();
+                } else {
+                    ctx.sub = .{ .awaiting_piece_name = .{ .cityp = cp } };
+                }
             } else {
-                ctx.sub = .{ .awaiting_piece_name = .{ .cityp = cityp } };
+                display.complain();
             }
         },
         ' ' => {
@@ -792,15 +810,14 @@ fn handleAskUserCommand(ctx: *AskUserCtx, obj: *piece_info_t, key: vx.Key) void 
             if (globals.user_map[@intCast(obj.loc)].contents != 'O') {
                 display.complain();
             } else {
-                const cityp = object.find_city(obj.loc);
-                std.debug.assert(cityp != null);
+                const cityp = object.find_city(obj.loc).?;
                 stack.push(.{ .set_prod = .{ .cityp = cityp, .caller = .user_build } });
                 pushSetProdPrompt(cityp);
             }
         },
         'H' => {
             terminal.help(&data.help_user, data.user_lines);
-            terminal.prompt("Press any key to continue: ");
+            terminal.prompt("Press any key to continue: ", .{});
             stack.push(.help_screen);
         },
         'K' => {
@@ -817,7 +834,7 @@ fn handleAskUserCommand(ctx: *AskUserCtx, obj: *piece_info_t, key: vx.Key) void 
     }
 }
 
-fn finishAskUser(obj: *piece_info_t) void {
+fn finishAskUser(obj: *Piece) void {
     const old_blink = blink_loc;
     blink_loc = -1;
     blink_reverse = false;
@@ -843,7 +860,7 @@ fn finishAskUser(obj: *piece_info_t) void {
 
 // ── Direction handling ──────────────────────────────────────────────────
 
-fn askUserDirection(obj: *piece_info_t, dir: globals.Direction) void {
+fn askUserDirection(obj: *Piece, dir: globals.Direction) void {
     const loc = obj.loc + user.dir_offset(dir);
 
     if (object.good_loc(obj, loc)) {
@@ -852,7 +869,7 @@ fn askUserDirection(obj: *piece_info_t, dir: globals.Direction) void {
         return;
     }
     if (!globals.map[@intCast(loc)].on_board) {
-        terminal.@"error"("You cannot move to the edge of the world.");
+        terminal.@"error"("You cannot move to the edge of the world.", .{});
         pushDelay();
         // Stay in ask_user - delay frame on top; when it pops, user picks another direction
         return;
@@ -864,7 +881,7 @@ fn askUserDirection(obj: *piece_info_t, dir: globals.Direction) void {
     }
 }
 
-fn dirArmy(obj: *piece_info_t, loc: c_long) void {
+fn dirArmy(obj: *Piece, loc: i64) void {
     const uloc: usize = @intCast(loc);
 
     if (globals.user_map[uloc].contents == 'O') {
@@ -873,7 +890,7 @@ fn dirArmy(obj: *piece_info_t, loc: c_long) void {
             object.move_obj(obj, loc);
             finishAskUser(obj);
         } else {
-            terminal.prompt("That's our city, sir!  Do you really want to attack the garrison? ");
+            terminal.prompt("That's our city, sir!  Do you really want to attack the garrison? ", .{});
             stack.push(.{ .yes_no = .{
                 .action = .army_city,
                 .obj = obj,
@@ -883,7 +900,7 @@ fn dirArmy(obj: *piece_info_t, loc: c_long) void {
             } });
         }
     } else if (globals.user_map[uloc].contents == 'T') {
-        terminal.prompt("Sorry, sir.  There is no more room on the transport.  Do you insist? ");
+        terminal.prompt("Sorry, sir.  There is no more room on the transport.  Do you insist? ", .{});
         stack.push(.{ .yes_no = .{
             .action = .fatal_army_transport,
             .obj = obj,
@@ -892,7 +909,7 @@ fn dirArmy(obj: *piece_info_t, loc: c_long) void {
             .stay_in_ask_on_no = false,
         } });
     } else if (globals.map[uloc].contents == data.MAP_SEA) {
-        terminal.prompt("Troops can't walk on water, sir.  Do you really want to go to sea? ");
+        terminal.prompt("Troops can't walk on water, sir.  Do you really want to go to sea? ", .{});
         stack.push(.{ .yes_no = .{
             .action = .army_water,
             .obj = obj,
@@ -903,7 +920,7 @@ fn dirArmy(obj: *piece_info_t, loc: c_long) void {
     } else if (std.ascii.isUpper(globals.user_map[uloc].contents) and
         globals.user_map[uloc].contents != 'X')
     {
-        terminal.prompt("Sir, those are our men!  Do you really want to attack them? ");
+        terminal.prompt("Sir, those are our men!  Do you really want to attack them? ", .{});
         stack.push(.{ .yes_no = .{
             .action = .army_friendly,
             .obj = obj,
@@ -917,11 +934,11 @@ fn dirArmy(obj: *piece_info_t, loc: c_long) void {
     }
 }
 
-fn dirFighter(obj: *piece_info_t, loc: c_long) void {
+fn dirFighter(obj: *Piece, loc: i64) void {
     const uloc: usize = @intCast(loc);
 
     if (globals.map[uloc].contents == data.MAP_CITY) {
-        terminal.prompt("That's never worked before, sir.  Do you really want to try? ");
+        terminal.prompt("That's never worked before, sir.  Do you really want to try? ", .{});
         stack.push(.{ .yes_no = .{
             .action = .fighter_city,
             .obj = obj,
@@ -930,7 +947,7 @@ fn dirFighter(obj: *piece_info_t, loc: c_long) void {
             .stay_in_ask_on_no = false,
         } });
     } else if (std.ascii.isUpper(globals.user_map[uloc].contents)) {
-        terminal.prompt("Sir, those are our men!  Do you really want to attack them? ");
+        terminal.prompt("Sir, those are our men!  Do you really want to attack them? ", .{});
         stack.push(.{ .yes_no = .{
             .action = .fighter_friendly,
             .obj = obj,
@@ -944,23 +961,22 @@ fn dirFighter(obj: *piece_info_t, loc: c_long) void {
     }
 }
 
-fn dirShip(obj: *piece_info_t, loc: c_long) void {
+fn dirShip(obj: *Piece, loc: i64) void {
     const uloc: usize = @intCast(loc);
-    const snprintf = @cImport({ @cInclude("stdio.h"); }).snprintf;
 
     if (globals.map[uloc].contents == data.MAP_CITY) {
-        _ = snprintf(&globals.jnkbuf, globals.STRSIZE, "Your %s broke up on shore.",
-            @as([*c]const u8, &data.piece_attr[@intCast(obj.type)].name));
-        terminal.prompt("That's never worked before, sir.  Do you really want to try? ");
+        const name = std.mem.sliceTo(&data.piece_attr[@intCast(obj.type)].name, 0);
+        const msg = std.fmt.bufPrintZ(&globals.jnkbuf, "Your {s} broke up on shore.", .{name}) catch unreachable;
+        terminal.prompt("That's never worked before, sir.  Do you really want to try? ", .{});
         stack.push(.{ .yes_no = .{
             .action = .ship_city,
             .obj = obj,
             .loc = loc,
-            .response_msg = &globals.jnkbuf,
+            .response_msg = msg.ptr,
             .stay_in_ask_on_no = false,
         } });
     } else if (globals.map[uloc].contents == data.MAP_LAND) {
-        terminal.prompt("Ships need sea to float, sir.  Do you really want to go ashore? ");
+        terminal.prompt("Ships need sea to float, sir.  Do you really want to go ashore? ", .{});
         stack.push(.{ .yes_no = .{
             .action = .ship_shore,
             .obj = obj,
@@ -969,7 +985,7 @@ fn dirShip(obj: *piece_info_t, loc: c_long) void {
             .stay_in_ask_on_no = false,
         } });
     } else if (std.ascii.isUpper(globals.user_map[uloc].contents)) {
-        terminal.prompt("Sir, those are our men!  Do you really want to attack them? ");
+        terminal.prompt("Sir, those are our men!  Do you really want to attack them? ", .{});
         stack.push(.{ .yes_no = .{
             .action = .ship_friendly,
             .obj = obj,
@@ -988,7 +1004,7 @@ fn dirShip(obj: *piece_info_t, loc: c_long) void {
 fn handleYesNoKey(key: vx.Key) void {
     const ch = upperKey(key);
     if (ch != 'Y' and ch != 'N') {
-        terminal.@"error"("Please answer Y or N.");
+        terminal.@"error"("Please answer Y or N.", .{});
         return;
     }
 
@@ -1012,7 +1028,12 @@ fn executeYesAction(ctx: YesNoCtx) void {
     switch (ctx.action) {
         .quit => util.empend(),
         .army_city, .fatal_army_transport, .fighter_city, .ship_city => {
-            if (ctx.response_msg) |msg| terminal.comment(msg);
+            if (ctx.response_msg) |msg| {
+                terminal.writeTopmsg(1, "");
+                terminal.writeTopmsg(2, "");
+                terminal.writeTopmsg(3, msg);
+                terminal.set_need_delay();
+            }
             if (ctx.obj) |obj| {
                 object.kill_obj(obj, ctx.loc);
                 finishAskUser(obj);
@@ -1025,17 +1046,17 @@ fn executeYesAction(ctx: YesNoCtx) void {
                 var enemy_killed = false;
 
                 if (globals.user_map[obj_uloc].contents == 'T') {
-                    terminal.comment("Your army jumped into the briny and drowned.");
-                    terminal.ksend("Your army jumped into the briny and drowned.\n");
+                    terminal.comment("Your army jumped into the briny and drowned.", .{});
+                    terminal.ksend("Your army jumped into the briny and drowned.\n", .{});
                 } else if (globals.user_map[uloc].contents == data.MAP_SEA) {
-                    terminal.comment("Your army marched dutifully into the sea and drowned.");
-                    terminal.ksend("Your army marched dutifully into the sea and drowned.\n");
+                    terminal.comment("Your army marched dutifully into the sea and drowned.", .{});
+                    terminal.ksend("Your army marched dutifully into the sea and drowned.\n", .{});
                 } else {
                     enemy_killed = std.ascii.isLower(globals.user_map[uloc].contents);
                     attack.attack(obj, ctx.loc);
                     if (obj.hits > 0) {
-                        terminal.comment("Your army regretfully drowns after its successful assault.");
-                        terminal.ksend("Your army regretfully drowns after its successful assault.");
+                        terminal.comment("Your army regretfully drowns after its successful assault.", .{});
+                        terminal.ksend("Your army regretfully drowns after its successful assault.", .{});
                     }
                 }
                 if (obj.hits > 0) {
@@ -1055,18 +1076,17 @@ fn executeYesAction(ctx: YesNoCtx) void {
             if (ctx.obj) |obj| {
                 const uloc: usize = @intCast(ctx.loc);
                 var enemy_killed = false;
+                const name = std.mem.sliceTo(&data.piece_attr[@intCast(obj.type)].name, 0);
 
                 if (globals.user_map[uloc].contents == data.MAP_LAND) {
-                    terminal.comment("Your %s broke up on shore.", @as([*c]const u8, &data.piece_attr[@intCast(obj.type)].name));
-                    terminal.ksend("Your %s broke up on shore.", @as([*c]const u8, &data.piece_attr[@intCast(obj.type)].name));
+                    terminal.comment("Your {s} broke up on shore.", .{name});
+                    terminal.ksend("Your {s} broke up on shore.", .{name});
                 } else {
                     enemy_killed = std.ascii.isLower(globals.user_map[uloc].contents);
                     attack.attack(obj, ctx.loc);
                     if (obj.hits > 0) {
-                        terminal.comment("Your %s breaks up after its successful assault.",
-                            @as([*c]const u8, &data.piece_attr[@intCast(obj.type)].name));
-                        terminal.ksend("Your %s breaks up after its successful assault.",
-                            @as([*c]const u8, &data.piece_attr[@intCast(obj.type)].name));
+                        terminal.comment("Your {s} breaks up after its successful assault.", .{name});
+                        terminal.ksend("Your {s} breaks up after its successful assault.", .{name});
                     }
                 }
                 if (obj.hits > 0) {
@@ -1081,18 +1101,18 @@ fn executeYesAction(ctx: YesNoCtx) void {
 
 // ── Set prod ────────────────────────────────────────────────────────────
 
-fn pushSetProdPrompt(cityp: [*c]city_info_t) void {
-    object.scan(&globals.user_map, cityp.*.loc);
-    display.display_loc_u(cityp.*.loc);
-    terminal.prompt("What do you want the city at %d to produce? ",
-        terminal.loc_disp(@intCast(cityp.*.loc)));
+fn pushSetProdPrompt(cityp: *city_info_t) void {
+    object.scan(&globals.user_map, cityp.loc);
+    display.display_loc_u(cityp.loc);
+    terminal.prompt("What do you want the city at {d} to produce? ",
+        .{terminal.loc_disp(@intCast(cityp.loc))});
 }
 
 fn handleSetProdKey(key: vx.Key) void {
     const ch = upperKey(key);
     const ctx = stack.top().set_prod;
 
-    var found: c_int = NOPIECE;
+    var found: i32 = NOPIECE;
     for (0..NUM_OBJECTS) |i| {
         if (data.piece_attr[i].sname == ch) {
             found = @intCast(i);
@@ -1101,15 +1121,15 @@ fn handleSetProdKey(key: vx.Key) void {
     }
 
     if (found == NOPIECE) {
-        terminal.@"error"("I don't know how to build those.");
+        terminal.@"error"("I don't know how to build those.", .{});
         pushSetProdPrompt(ctx.cityp);
         return;
     }
 
     const cityp = ctx.cityp;
     const caller = ctx.caller;
-    cityp.*.prod = @intCast(found);
-    cityp.*.work = -@divTrunc(@as(c_long, data.piece_attr[@intCast(found)].build_time), 5);
+    cityp.prod = @intCast(found);
+    cityp.work = -@divTrunc(@as(i64, data.piece_attr[@intCast(found)].build_time), 5);
     stack.pop(); // pop set_prod
 
     switch (caller) {
@@ -1128,7 +1148,7 @@ fn handleSetProdKey(key: vx.Key) void {
         },
         .city_attack => {
             // City conquered, production set
-            object.scan(&globals.user_map, cityp.*.loc);
+            object.scan(&globals.user_map, cityp.loc);
             // Now finish the ask_user that was interrupted
             if (stack.top().* == .ask_user) {
                 const obj = stack.top().ask_user.obj;
@@ -1142,8 +1162,8 @@ fn handleSetProdKey(key: vx.Key) void {
 
 // ── Edit mode ───────────────────────────────────────────────────────────
 
-fn pushEditMode(loc: c_long) void {
-    terminal.comment("Edit mode...");
+fn pushEditMode(loc: i64) void {
+    terminal.comment("Edit mode...", .{});
     stack.push(.{ .edit_mode = .{
         .edit_cursor = loc,
         .path_start = -1,
@@ -1170,19 +1190,18 @@ fn handleEditKey(key: vx.Key) void {
             const ch = upperKey(key);
             switch (ch) {
                 'B' => {
-                    const cityp = object.find_city(ctx.edit_cursor);
-                    if (cityp == null) {
-                        terminal.huh();
+                    if (object.find_city(ctx.edit_cursor)) |cp| {
+                        stack.push(.{ .set_prod = .{ .cityp = cp, .caller = .edit_prod } });
+                        pushSetProdPrompt(cp);
                     } else {
-                        stack.push(.{ .set_prod = .{ .cityp = cityp, .caller = .edit_prod } });
-                        pushSetProdPrompt(cityp);
+                        terminal.huh();
                     }
                 },
                 'F' => edit.e_fill(ctx.edit_cursor),
                 'G' => edit.e_explore(ctx.edit_cursor),
                 'H' => {
                     terminal.help(&data.help_edit, data.edit_lines);
-                    terminal.prompt("Press any key to continue: ");
+                    terminal.prompt("Press any key to continue: ", .{});
                     stack.push(.help_screen);
                 },
                 'I' => {
@@ -1207,11 +1226,14 @@ fn handleEditKey(key: vx.Key) void {
                 'T' => edit.e_transport(ctx.edit_cursor),
                 'U' => edit.e_repair(ctx.edit_cursor),
                 'V' => {
-                    const cityp = object.find_city(ctx.edit_cursor);
-                    if (cityp == null or cityp.*.owner != USER) {
-                        terminal.huh();
+                    if (object.find_city(ctx.edit_cursor)) |cp| {
+                        if (cp.owner != USER) {
+                            terminal.huh();
+                        } else {
+                            ctx.sub = .{ .awaiting_piece_name = .{ .cityp = cp } };
+                        }
                     } else {
-                        ctx.sub = .{ .awaiting_piece_name = .{ .cityp = cityp } };
+                        terminal.huh();
                     }
                 },
                 'Y' => edit.e_attack(ctx.edit_cursor),
@@ -1223,9 +1245,9 @@ fn handleEditKey(key: vx.Key) void {
         .awaiting_stasis_dir => {
             const ch = upperKey(key);
             const dirs = "WEDCXZAQ";
-            const MOVE_N = @as(c_long, @intFromEnum(globals.Function.Move_N));
+            const MOVE_N_VAL = @as(i64, @intFromEnum(globals.Function.Move_N));
             if (std.mem.indexOfScalar(u8, dirs, ch)) |i| {
-                edit.e_set_func(ctx.edit_cursor, MOVE_N - @as(c_long, @intCast(i)));
+                edit.e_set_func(ctx.edit_cursor, MOVE_N_VAL - @as(i64, @intCast(i)));
             } else {
                 terminal.huh();
             }
@@ -1233,7 +1255,7 @@ fn handleEditKey(key: vx.Key) void {
         },
         .awaiting_piece_name => |info| {
             const ch = upperKey(key);
-            var found: c_int = NOPIECE;
+            var found: i32 = NOPIECE;
             for (0..NUM_OBJECTS) |i| {
                 if (data.piece_attr[i].sname == ch) {
                     found = @intCast(i);
@@ -1249,7 +1271,6 @@ fn handleEditKey(key: vx.Key) void {
         },
         .awaiting_city_func => |info| {
             const ch = upperKey(key);
-            const MOVE_N = @as(c_long, @intFromEnum(globals.Function.Move_N));
             switch (ch) {
                 'F' => edit.e_city_fill(info.cityp, info.piece_t),
                 'G' => edit.e_city_explore(info.cityp, info.piece_t),
@@ -1268,14 +1289,13 @@ fn handleEditKey(key: vx.Key) void {
                 else => terminal.huh(),
             }
             ctx.sub = .input;
-            _ = MOVE_N;
         },
         .awaiting_city_stasis_dir => |info| {
             const ch = upperKey(key);
             const dirs = "WEDCXZAQ";
-            const MOVE_N = @as(c_long, @intFromEnum(globals.Function.Move_N));
+            const MOVE_N_VAL = @as(i64, @intFromEnum(globals.Function.Move_N));
             if (std.mem.indexOfScalar(u8, dirs, ch)) |i| {
-                edit.e_set_city_func(info.cityp, info.piece_t, MOVE_N - @as(c_long, @intCast(i)));
+                edit.e_set_city_func(info.cityp, info.piece_t, MOVE_N_VAL - @as(i64, @intCast(i)));
             } else {
                 terminal.huh();
             }
@@ -1285,7 +1305,7 @@ fn handleEditKey(key: vx.Key) void {
 }
 
 fn exitEditMode() void {
-    terminal.comment("Exiting edit mode.");
+    terminal.comment("Exiting edit mode.", .{});
     stack.pop(); // pop edit_mode
 
     if (stack.depth > 0) {
@@ -1304,8 +1324,8 @@ fn exitEditMode() void {
 
 // ── Get range ───────────────────────────────────────────────────────────
 
-fn pushGetRange(message: [*c]const u8, low: c_int, high: c_int, caller: GetRangeCtx.GetRangeCaller) void {
-    terminal.prompt(message);
+fn pushGetRange(message: [*:0]const u8, low: i32, high: i32, caller: GetRangeCtx.GetRangeCaller) void {
+    terminal.writeTopmsg(1, message);
     vx.render();
     stack.push(.{ .get_range = .{
         .low = low,
@@ -1324,26 +1344,26 @@ fn handleGetRangeKey(key: vx.Key) void {
     if (key.codepoint == '\r' or key.codepoint == '\n') {
         vx.setCursorVisible(false);
         if (ctx.len == 0) {
-            terminal.@"error"("Please enter an integer.");
+            terminal.@"error"("Please enter an integer.", .{});
             restartGetRange(ctx);
             return;
         }
         var valid = true;
-        for (ctx.buf[0..ctx.len]) |c| {
-            if (c < '0' or c > '9') { valid = false; break; }
+        for (ctx.buf[0..ctx.len]) |ch| {
+            if (ch < '0' or ch > '9') { valid = false; break; }
         }
         if (!valid) {
-            terminal.@"error"("Please enter an integer.");
+            terminal.@"error"("Please enter an integer.", .{});
             restartGetRange(ctx);
             return;
         }
-        const result = std.fmt.parseInt(c_int, ctx.buf[0..ctx.len], 10) catch {
-            terminal.@"error"("Please enter a small integer.");
+        const result = std.fmt.parseInt(i32, ctx.buf[0..ctx.len], 10) catch {
+            terminal.@"error"("Please enter a small integer.", .{});
             restartGetRange(ctx);
             return;
         };
         if (result < ctx.low or result > ctx.high) {
-            terminal.@"error"("Please enter an integer in the range %d..%d.", ctx.low, ctx.high);
+            terminal.@"error"("Please enter an integer in the range {d}..{d}.", .{ ctx.low, ctx.high });
             restartGetRange(ctx);
             return;
         }
@@ -1394,7 +1414,7 @@ fn handleGetRangeKey(key: vx.Key) void {
 
 fn restartGetRange(ctx: *GetRangeCtx) void {
     ctx.len = 0;
-    terminal.prompt(ctx.message);
+    terminal.writeTopmsg(1, ctx.message);
     vx.render();
     ctx.cursor_y = vx.screenCursorRow();
     ctx.cursor_x = vx.screenCursorCol();
@@ -1404,7 +1424,7 @@ fn restartGetRange(ctx: *GetRangeCtx) void {
 // ── Get str ─────────────────────────────────────────────────────────────
 
 fn pushGetStr(caller: GetStrCtx.GetStrCaller) void {
-    terminal.prompt("Filename? ");
+    terminal.prompt("Filename? ", .{});
     vx.render();
     stack.push(.{ .get_str = .{
         .caller = caller,
@@ -1455,7 +1475,7 @@ fn handleGetStrKey(key: vx.Key) void {
 
 fn writeMapFile(name: []u8) void {
     var f = std.fs.cwd().createFile(name, .{}) catch {
-        terminal.error_msg("I can't open that file.");
+        terminal.@"error"("I can't open that file.", .{});
         return;
     };
     defer f.close();
@@ -1470,7 +1490,7 @@ fn writeMapFile(name: []u8) void {
         line[@intCast(j + 1)] = '\n';
         line[@intCast(j + 2)] = 0;
         f.writeAll(line[0..@intCast(j + 2)]) catch {
-            terminal.error_msg("Write failed.");
+            terminal.@"error"("Write failed.", .{});
         };
     }
 }
@@ -1495,8 +1515,8 @@ fn c_give() void {
         }
     }
     if (count == 0) {
-        terminal.error_msg("There are no unowned cities.");
-        terminal.ksend("There are no unowned cities.");
+        terminal.@"error"("There are no unowned cities.", .{});
+        terminal.ksend("There are no unowned cities.", .{});
         return;
     }
     const i: usize = @intCast(math.irand(@intCast(count)));

@@ -1,80 +1,152 @@
-pub const loc_t = c_long;
+const std = @import("std");
+
+pub const loc_t = i64;
 pub const uchar = u8;
-pub const struct_real_map = extern struct {
-    contents: u8 = @import("std").mem.zeroes(u8),
-    on_board: bool = @import("std").mem.zeroes(bool),
-    cityp: [*c]city_info_t = @import("std").mem.zeroes([*c]city_info_t),
-    objp: [*c]piece_info_t = @import("std").mem.zeroes([*c]piece_info_t),
+
+// ── Piece pool types ────────────────────────────────────────────────────
+
+pub const PieceIdx = u16;
+pub const NO_PIECE: PieceIdx = std.math.maxInt(PieceIdx);
+pub const MAX_CARGO: usize = 8;
+pub const LIST_SIZE: usize = 5000;
+
+pub const Piece = struct {
+    owner: i32 = 0,
+    type: i32 = 0,
+    loc: loc_t = 0,
+    func: i64 = 0,
+    hits: i16 = 0,
+    moved: i32 = 0,
+    ship: PieceIdx = NO_PIECE,
+    count: i16 = 0,
+    range: i16 = 0,
+
+    // Pool bookkeeping
+    alive: bool = false,
+
+    // Location chain (replaces loc_link doubly-linked list)
+    loc_next: PieceIdx = NO_PIECE,
+
+    // Cargo (replaces cargo_link doubly-linked list)
+    cargo: [MAX_CARGO]PieceIdx = [_]PieceIdx{NO_PIECE} ** MAX_CARGO,
 };
-pub const real_map_t = struct_real_map;
-pub const struct_view_map = extern struct {
-    contents: u8 = @import("std").mem.zeroes(u8),
-    seen: c_long = @import("std").mem.zeroes(c_long),
+
+// ── Map types ───────────────────────────────────────────────────────────
+
+pub const real_map_t = struct {
+    contents: u8 = 0,
+    on_board: bool = false,
+    cityp: ?*city_info_t = null,
+    obj_head: PieceIdx = NO_PIECE,
 };
-pub const view_map_t = struct_view_map;
+
+pub const view_map_t = extern struct {
+    contents: u8 = 0,
+    seen: i64 = 0,
+};
+
+// ── City types ──────────────────────────────────────────────────────────
+
 pub const struct_city_info = extern struct {
-    loc: loc_t = @import("std").mem.zeroes(loc_t),
-    owner: uchar = @import("std").mem.zeroes(uchar),
-    func: [9]c_long = @import("std").mem.zeroes([9]c_long),
-    work: c_long = @import("std").mem.zeroes(c_long),
-    prod: u8 = @import("std").mem.zeroes(u8),
+    loc: loc_t = 0,
+    owner: uchar = 0,
+    func: [9]i64 = [_]i64{0} ** 9,
+    work: i64 = 0,
+    prod: u8 = 0,
 };
 pub const city_info_t = struct_city_info;
-pub const struct_piece_info = extern struct {
-    piece_link: link_t = @import("std").mem.zeroes(link_t),
-    loc_link: link_t = @import("std").mem.zeroes(link_t),
-    cargo_link: link_t = @import("std").mem.zeroes(link_t),
-    owner: c_int = @import("std").mem.zeroes(c_int),
-    type: c_int = @import("std").mem.zeroes(c_int),
-    loc: loc_t = @import("std").mem.zeroes(loc_t),
-    func: c_long = @import("std").mem.zeroes(c_long),
-    hits: c_short = @import("std").mem.zeroes(c_short),
-    moved: c_int = @import("std").mem.zeroes(c_int),
-    ship: [*c]struct_piece_info = @import("std").mem.zeroes([*c]struct_piece_info),
-    cargo: [*c]struct_piece_info = @import("std").mem.zeroes([*c]struct_piece_info),
-    count: c_short = @import("std").mem.zeroes(c_short),
-    range: c_short = @import("std").mem.zeroes(c_short),
-};
-pub const link_t = extern struct {
-    next: ?*struct_piece_info = null,
-    prev: ?*struct_piece_info = null,
-};
-pub const piece_info_t = struct_piece_info;
-pub const struct_piece_attr = extern struct {
-    sname: u8 = @import("std").mem.zeroes(u8),
-    name: [20]u8 = @import("std").mem.zeroes([20]u8),
-    nickname: [20]u8 = @import("std").mem.zeroes([20]u8),
-    article: [20]u8 = @import("std").mem.zeroes([20]u8),
-    plural: [20]u8 = @import("std").mem.zeroes([20]u8),
-    terrain: [4]u8 = @import("std").mem.zeroes([4]u8),
-    build_time: uchar = @import("std").mem.zeroes(uchar),
-    strength: uchar = @import("std").mem.zeroes(uchar),
-    max_hits: uchar = @import("std").mem.zeroes(uchar),
-    speed: uchar = @import("std").mem.zeroes(uchar),
-    capacity: uchar = @import("std").mem.zeroes(uchar),
-    range: c_long = @import("std").mem.zeroes(c_long),
+
+// ── Other types ─────────────────────────────────────────────────────────
+
+pub const struct_piece_attr = struct {
+    sname: u8 = 0,
+    name: [20]u8 = std.mem.zeroes([20]u8),
+    nickname: [20]u8 = std.mem.zeroes([20]u8),
+    article: [20]u8 = std.mem.zeroes([20]u8),
+    plural: [20]u8 = std.mem.zeroes([20]u8),
+    terrain: [4]u8 = std.mem.zeroes([4]u8),
+    build_time: uchar = 0,
+    strength: uchar = 0,
+    max_hits: uchar = 0,
+    speed: uchar = 0,
+    capacity: uchar = 0,
+    range: i64 = 0,
 };
 pub const piece_attr_t = struct_piece_attr;
-pub const path_map_t = extern struct {
-    cost: c_int = @import("std").mem.zeroes(c_int),
-    inc_cost: c_int = @import("std").mem.zeroes(c_int),
-    terrain: u8 = @import("std").mem.zeroes(u8),
+
+pub const path_map_t = struct {
+    cost: i32 = 0,
+    inc_cost: i32 = 0,
+    terrain: u8 = 0,
 };
-pub const move_info_t = extern struct {
-    city_owner: u8 = @import("std").mem.zeroes(u8),
-    objectives: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
-    weights: [11]c_int = @import("std").mem.zeroes([11]c_int),
+
+pub const move_info_t = struct {
+    city_owner: u8 = 0,
+    objectives: [*:0]const u8 = "",
+    weights: [11]i32 = [_]i32{0} ** 11,
 };
-pub const scan_counts_t = extern struct {
-    user_cities: c_int = 0,
-    user_objects: [9]c_int = @import("std").mem.zeroes([9]c_int),
-    comp_cities: c_int = 0,
-    comp_objects: [9]c_int = @import("std").mem.zeroes([9]c_int),
-    size: c_int = 0,
-    unowned_cities: c_int = 0,
-    unexplored: c_int = 0,
+
+pub const scan_counts_t = struct {
+    user_cities: i32 = 0,
+    user_objects: [9]i32 = [_]i32{0} ** 9,
+    comp_cities: i32 = 0,
+    comp_objects: [9]i32 = [_]i32{0} ** 9,
+    size: i32 = 0,
+    unowned_cities: i32 = 0,
+    unexplored: i32 = 0,
 };
-pub const perimeter_t = extern struct {
-    len: c_long = 0,
-    list: [6000]c_long = @import("std").mem.zeroes([6000]c_long),
+
+pub const perimeter_t = struct {
+    len: i64 = 0,
+    list: [6000]i64 = std.mem.zeroes([6000]i64),
+};
+
+// ── Old types (for backward-compatible save loading) ────────────────────
+
+pub const OldLink = extern struct {
+    next: ?*anyopaque = null,
+    prev: ?*anyopaque = null,
+};
+
+pub const OldPieceInfo = extern struct {
+    piece_link: OldLink = .{},
+    loc_link: OldLink = .{},
+    cargo_link: OldLink = .{},
+    owner: i32 = 0,
+    type: i32 = 0,
+    loc: i64 = 0,
+    func: i64 = 0,
+    hits: i16 = 0,
+    moved: i32 = 0,
+    ship: ?*anyopaque = null,
+    cargo: ?*anyopaque = null,
+    count: i16 = 0,
+    range: i16 = 0,
+};
+
+pub const OldRealMap = extern struct {
+    contents: u8 = 0,
+    on_board: bool = false,
+    cityp: ?*anyopaque = null,
+    objp: ?*anyopaque = null,
+};
+
+// ── Save format types ───────────────────────────────────────────────────
+
+pub const SavedPiece = extern struct {
+    owner: i32 = 0,
+    type: i32 = 0,
+    loc: i64 = 0,
+    func: i64 = 0,
+    hits: i16 = 0,
+    moved: i32 = 0,
+    ship: PieceIdx = NO_PIECE,
+    count: i16 = 0,
+    range: i16 = 0,
+    alive: u8 = 0,
+};
+
+pub const SavedMapCell = extern struct {
+    contents: u8 = 0,
+    on_board: u8 = 0,
 };

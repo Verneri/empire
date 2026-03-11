@@ -7,7 +7,7 @@ pub const MAP_SEA = '.';
 pub const MAP_CITY = '*';
 
 const INFINITY = 10000000;
-const W_TT_BUILD: c_int = -1;
+const W_TT_BUILD: i32 = -1;
 const USER = @intFromEnum(globals.Ownership.User);
 const COMP = @intFromEnum(globals.Ownership.Comp);
 
@@ -17,8 +17,8 @@ fn strBuf(comptime N: usize, comptime s: []const u8) [N]u8 {
     return buf;
 }
 
-fn weights(comptime vals: []const c_int) [11]c_int {
-    var w: [11]c_int = std.mem.zeroes([11]c_int);
+fn weights(comptime vals: []const i32) [11]i32 {
+    var w: [11]i32 = std.mem.zeroes([11]i32);
     for (vals, 0..) |v, i| w[i] = v;
     return w;
 }
@@ -39,7 +39,7 @@ pub var piece_attr: [9]types.piece_attr_t = .{
 
 // Direction offsets
 
-pub var dir_offset: [8]c_int = .{
+pub var dir_offset: [8]i32 = .{
     -globals.MAP_WIDTH, // north
     -globals.MAP_WIDTH + 1, // northeast
     1, // east
@@ -52,7 +52,7 @@ pub var dir_offset: [8]c_int = .{
 
 // Names of movement functions
 
-pub var func_name: [19][*c]const u8 = .{
+pub var func_name: [19][*:0]const u8 = .{
     "none", "random", "sentry", "fill", "land",
     "explore", "load", "attack", "load", "repair",
     "transport", "W", "E", "D", "C",
@@ -61,7 +61,7 @@ pub var func_name: [19][*c]const u8 = .{
 
 // The order in which pieces should be moved
 
-pub var move_order: [9]c_int = .{
+pub var move_order: [9]i32 = .{
     @intFromEnum(globals.PieceType.Satellite),
     @intFromEnum(globals.PieceType.Transport),
     @intFromEnum(globals.PieceType.Carrier),
@@ -103,7 +103,7 @@ pub var user_ship_repair: types.move_info_t = .{ .city_owner = USER, .objectives
 
 // Help texts
 
-pub var help_cmd: [19][*c]const u8 = .{
+pub var help_cmd: [19][*:0]const u8 = .{
     "COMMAND MODE",
     "Auto:     enter automove mode",
     "City:     give city to computer",
@@ -124,9 +124,9 @@ pub var help_cmd: [19][*c]const u8 = .{
     "Zoom:     display compressed map",
     "<ctrl-L>: redraw screen",
 };
-pub var cmd_lines: c_int = 19;
+pub var cmd_lines: i32 = 19;
 
-pub var help_user: [22][*c]const u8 = .{
+pub var help_user: [22][*:0]const u8 = .{
     "USER MODE",
     "QWE",
     "A D       movement directions",
@@ -150,9 +150,9 @@ pub var help_user: [22][*c]const u8 = .{
     "Y:        set func to attack",
     "?:        describe piece",
 };
-pub var user_lines: c_int = 22;
+pub var user_lines: i32 = 22;
 
-pub var help_edit: [22][*c]const u8 = .{
+pub var help_edit: [22][*:0]const u8 = .{
     "EDIT MODE",
     "QWE",
     "A D       movement directions",
@@ -176,4 +176,4 @@ pub var help_edit: [22][*c]const u8 = .{
     "<ctrl-L>: redraw screen",
     "?:        describe piece",
 };
-pub var edit_lines: c_int = 22;
+pub var edit_lines: i32 = 22;

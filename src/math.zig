@@ -9,12 +9,12 @@ pub fn rndini() void {
     rng = std.Random.DefaultPrng.init(seed);
 }
 
-pub fn irand(high: c_long) c_long {
+pub fn irand(high: i64) i64 {
     if (high < 2) return 0;
     return @intCast(rng.random().uintLessThan(u64, @intCast(high)));
 }
 
-pub fn dist(a: c_long, b: c_long) c_int {
+pub fn dist(a: i64, b: i64) i32 {
     const ax = util.loc_row(a);
     const ay = util.loc_col(a);
     const bx = util.loc_row(b);
@@ -23,12 +23,12 @@ pub fn dist(a: c_long, b: c_long) c_int {
     return @intCast(@max(@abs(ax - bx), @abs(ay - by)));
 }
 
-pub fn isqrt(n: c_int) c_int {
+pub fn isqrt(n: i32) i32 {
     std.debug.assert(n >= 0);
 
     if (n <= 1) return n;
 
-    var guess: c_int = 2;
+    var guess: i32 = 2;
     guess = @divTrunc(guess + @divTrunc(n, guess), 2);
     guess = @divTrunc(guess + @divTrunc(n, guess), 2);
     guess = @divTrunc(guess + @divTrunc(n, guess), 2);

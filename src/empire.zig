@@ -9,8 +9,8 @@ pub fn empire() void {
     display.ttinit();
     math.rndini();
     display.clear_screen();
-    display.pos_str(@as(c_int, 7), @as(c_int, 0), "EMPIRE, Version 5.00 site Amdahl 1-Apr-1988");
-    display.pos_str(@as(c_int, 8), @as(c_int, 0), "Detailed directions are in EMPIRE.DOC\n");
+    display.pos_str(7, 0, "EMPIRE, Version 5.00 site Amdahl 1-Apr-1988", .{});
+    display.pos_str(8, 0, "Detailed directions are in EMPIRE.DOC\n", .{});
     display.redisplay();
     game.restore() catch {
         game.init();
@@ -43,7 +43,12 @@ pub fn empire() void {
 fn handleEvent(event: vx.Event) void {
     switch (event) {
         .key_press => |key| state.handleKey(key),
-        .winsize => |ws| vx.handleResize(ws),
+        .winsize => |ws| {
+            vx.handleResize(ws);
+            display.ttinit_sizes();
+            display.kill_display();
+            state.redrawScreen();
+        },
         else => {},
     }
 }

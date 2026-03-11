@@ -2,7 +2,10 @@ const std = @import("std");
 const globals = @import("globals.zig");
 const object = @import("object.zig");
 const types = @import("types.zig");
-const piece_info_t = types.piece_info_t;
+const Piece = types.Piece;
+const PieceIdx = types.PieceIdx;
+const NO_PIECE = types.NO_PIECE;
+const LIST_SIZE = globals.LIST_SIZE;
 const data = @import("data.zig");
 const terminal = @import("terminal.zig");
 const display = @import("display.zig");
@@ -15,11 +18,10 @@ const attack = @import("attack.zig");
 
 pub fn move() void {
     // reset moved for units
-    for (globals.user_obj) |obj| {
-        var cur: ?*types.struct_piece_info = obj;
-        while (cur != null) : (cur = cur.?.piece_link.next) {
-            cur.?.moved = 0;
-            object.scan(&globals.user_map, cur.?.loc);
+    for (&globals.pool) |*piece| {
+        if (piece.alive and piece.owner == @intFromEnum(globals.Ownership.User)) {
+            piece.moved = 0;
+            object.scan(&globals.user_map, piece.loc);
         }
     }
     // produce
@@ -32,8 +34,8 @@ pub fn move() void {
             } else {
                 city.work += 1;
                 if (city.work >= data.piece_attr[prod].build_time) {
-                    terminal.ksend("%s has been completed at city %d.\n", &data.piece_attr[prod].article, terminal.loc_disp(@as(c_int, @bitCast(@as(c_int, @truncate(city.loc))))));
-                    terminal.comment("%s has been completed at city %d.\n", &data.piece_attr[prod].article, terminal.loc_disp(@as(c_int, @bitCast(@as(c_int, @truncate(city.loc))))));
+                    terminal.ksend("{s} has been completed at city {d}.\n", .{ std.mem.sliceTo(&data.piece_attr[prod].article, 0), terminal.loc_disp(@intCast(city.loc)) });
+                    terminal.comment("{s} has been completed at city {d}.", .{ std.mem.sliceTo(&data.piece_attr[prod].article, 0), terminal.loc_disp(@intCast(city.loc)) });
 
                     object.produce(city);
                 }
@@ -41,9 +43,12 @@ pub fn move() void {
         }
     }
 
-    var cur_satellite: ?*types.struct_piece_info = globals.user_obj[@intFromEnum(globals.PieceType.Satellite)];
-    while (cur_satellite != null) : (cur_satellite = cur_satellite.?.piece_link.next) {
-        object.move_sat(cur_satellite.?);
+    for (&globals.pool) |*piece| {
+        if (piece.alive and piece.owner == @intFromEnum(globals.Ownership.User) and
+            piece.type == @intFromEnum(globals.PieceType.Satellite))
+        {
+            object.move_sat(piece);
+        }
     }
 
     var sec_start = display.cur_sector();
@@ -55,11 +60,11 @@ pub fn move() void {
         const sec = @rem(i, globals.NUM_SECTORS);
         display.sector_change();
         for (data.move_order[0..globals.NUM_OBJECTS]) |j| {
-            var cur: ?*types.struct_piece_info = globals.user_obj[@as(usize, @intCast(j))];
-            while (cur != null) : (cur = cur.?.piece_link.next) {
-                const obj = cur.?;
-                if (obj.moved == 0 and util.loc_sector(obj.loc) == sec) {
-                    piece_move(obj);
+            for (&globals.pool) |*piece| {
+                if (piece.alive and piece.owner == @intFromEnum(globals.Ownership.User) and
+                    piece.type == j and piece.moved == 0 and util.loc_sector(piece.loc) == sec)
+                {
+                    piece_move(piece);
                 }
             }
         }
@@ -79,7 +84,7 @@ pub inline fn owned_by(obj: anytype, owner: globals.Ownership) bool {
 // the loop, we first awaken the piece if it is adjacent to an enemy piece.
 // Then we attempt to handle any preprogrammed function for the piece.  If
 // the piece has not moved after this, we ask the user what to do.
-fn piece_move(obj: *types.piece_info_t) void {
+fn piece_move(obj: *Piece) void {
     const city: ?*types.struct_city_info = object.find_city(obj.loc);
     if (city) |c| {
         const city_func = c.func[@intCast(obj.type)];
@@ -146,9 +151,9 @@ fn piece_move(obj: *types.piece_info_t) void {
                 obj.*.range = @intCast(obj_attr.range);
                 obj.*.moved = speed;
                 obj.*.func = @intFromEnum(globals.Function.NoFunc);
-                terminal.comment("Landing confirmed");
+                terminal.comment("Landing confirmed", .{});
             } else if (obj.range == 0) {
-                terminal.comment("Fighter at %d crashed and burned.", terminal.loc_disp(@intCast(obj.loc)));
+                terminal.comment("Fighter at {d} crashed and burned.", .{terminal.loc_disp(@intCast(obj.loc))});
             }
         }
 
@@ -167,7 +172,7 @@ fn piece_move(obj: *types.piece_info_t) void {
     }
 }
 
-pub fn awake(obj: *types.piece_info_t) bool {
+pub fn awake(obj: *Piece) bool {
     if (type_is(obj, .Army) and
         map.vmap_at_sea(&globals.user_map, obj.loc))
     {
@@ -177,7 +182,7 @@ pub fn awake(obj: *types.piece_info_t) bool {
 
     if (function(obj) == .NoFunc) return true;
 
-    var city_loc: c_long = undefined;
+    var city_loc: i64 = undefined;
 
     if (piece_type(obj) == .Fighter and
         function(obj) != .Land and
@@ -204,7 +209,7 @@ pub fn awake(obj: *types.piece_info_t) bool {
     return false;
 }
 
-fn ask_user(obj: *types.piece_info_t) void {
+fn ask_user(obj: *Piece) void {
     while (true) {
         display.display_loc_u(obj.loc);
         object.describe_obj(obj);
@@ -325,11 +330,11 @@ fn ask_user(obj: *types.piece_info_t) void {
 /// Move a piece at random.  We create a list of empty squares to which
 /// the piece can move.  If there are none, we do nothing, otherwise we
 /// move the piece to a random adjacent square.
-pub fn move_random(obj: *types.piece_info_t) void {
+pub fn move_random(obj: *Piece) void {
     var nloc: usize = 0;
-    var loc_list: [8]c_long = [_]c_long{0} ** 8;
+    var loc_list: [8]i64 = [_]i64{0} ** 8;
     for (data.dir_offset[0..8]) |offset| {
-        const loc: c_long = obj.loc + offset;
+        const loc: i64 = obj.loc + offset;
         if (object.good_loc(obj, loc)) {
             loc_list[nloc] = loc;
             nloc += 1;
@@ -343,7 +348,7 @@ pub fn move_random(obj: *types.piece_info_t) void {
 /// Here we have a transport or carrier waiting to be filled.  If the
 /// object is not full, we set the move count to its maximum value.
 /// Otherwise we awaken the object.
-pub fn move_fill(obj: *types.piece_info_t) void {
+pub fn move_fill(obj: *Piece) void {
     if (obj.count == object.capacity(obj)) {
         obj.*.func = @intFromEnum(globals.Function.NoFunc);
     } else {
@@ -355,16 +360,18 @@ pub fn move_fill(obj: *types.piece_info_t) void {
 /// owned city.  We scan through the lists of cities and carriers looking
 /// for the closest one.  We then move toward that item's location.
 /// The nearest landing field must be within the object's range.
-pub fn move_land(obj: *types.piece_info_t) void {
-    var best_loc: c_long = 0;
+pub fn move_land(obj: *Piece) void {
+    var best_loc: i64 = 0;
     var best_dist = object.find_nearest_city(obj.loc, @intFromEnum(globals.Ownership.User), &best_loc);
-    var p: ?*piece_info_t = globals.user_obj[@intFromEnum(globals.PieceType.Carrier)];
-    while (p != null) : (p = p.?.piece_link.next) {
-        const carrier = p.?;
-        const new_dist = math.dist(obj.loc, carrier.loc);
-        if (new_dist < best_dist) {
-            best_dist = new_dist;
-            best_loc = carrier.loc;
+    for (&globals.pool) |*piece| {
+        if (piece.alive and piece.owner == @intFromEnum(globals.Ownership.User) and
+            piece.type == @intFromEnum(globals.PieceType.Carrier))
+        {
+            const new_dist = math.dist(obj.loc, piece.loc);
+            if (new_dist < best_dist) {
+                best_dist = new_dist;
+                best_loc = piece.loc;
+            }
         }
     }
 
@@ -380,7 +387,7 @@ pub fn move_land(obj: *types.piece_info_t) void {
 /// Have a piece explore.  We look for the nearest unexplored territory
 /// which the piece can reach and have to piece move toward the
 /// territory.
-pub fn move_explore(obj: *types.piece_info_t) void {
+pub fn move_explore(obj: *Piece) void {
     var path_map: [globals.MAP_SIZE]types.path_map_t = undefined;
     const loc_terrain = switch (piece_type(obj)) {
         .Army => .{
@@ -417,13 +424,13 @@ pub fn move_explore(obj: *types.piece_info_t) void {
 /// If there is an adjacent transport, move the army onto
 /// the transport, and awaken the army.
 /// current implementation just panics
-pub fn move_armyload(obj: *types.piece_info_t) void {
+pub fn move_armyload(obj: *Piece) void {
     _ = obj;
     std.debug.panic("no implementation for move_armyload. aborting", .{});
 }
 
 /// Move an army toward an attackable city or enemy army.
-pub fn move_armyattack(obj: *types.piece_info_t) void {
+pub fn move_armyattack(obj: *Piece) void {
     if (piece_type(obj) != .Army) {
         std.debug.panic("Army attack invoked for: {s}", .{@tagName(piece_type(obj))});
     }
@@ -447,13 +454,13 @@ pub fn move_armyattack(obj: *types.piece_info_t) void {
 }
 
 /// unclear what this is meant to be, current implementation just panics
-pub fn move_ttload(obj: *types.piece_info_t) void {
+pub fn move_ttload(obj: *Piece) void {
     _ = obj;
     std.debug.panic("no implementation for move_ttload", .{});
 }
 
 /// Move a ship toward port.  If the ship is healthy, wake it up.
-pub fn move_repair(obj: *types.piece_info_t) void {
+pub fn move_repair(obj: *Piece) void {
     if (obj.type <= @intFromEnum(globals.PieceType.Fighter)) {
         std.debug.panic("Repair invoked for: {s}", .{@tagName(piece_type(obj))});
     }
@@ -491,7 +498,7 @@ pub fn move_repair(obj: *types.piece_info_t) void {
 /// Move an army onto a transport when it arrives.  We scan around the
 /// army to find a non-full transport.  If one is present, we move the
 /// army to the transport and waken the army.
-pub fn move_transport(obj: *types.piece_info_t) void {
+pub fn move_transport(obj: *Piece) void {
     const loc = object.find_transport(@intFromEnum(globals.Ownership.User), obj.loc);
     if (loc != obj.loc) {
         object.move_obj(obj, loc);
@@ -503,7 +510,7 @@ pub fn move_transport(obj: *types.piece_info_t) void {
 /// Move a piece in the specified direction if possible.
 /// If the object is a fighter which has travelled for half its range,
 /// we wake it up.
-pub fn move_dir(obj: *types.piece_info_t) void {
+pub fn move_dir(obj: *Piece) void {
     const dir = to_move_dir(function(obj)) catch {
         std.debug.panic("trying to convert a non movement direction function ({s}), to direction", .{@tagName(function(obj))});
     };
@@ -517,7 +524,7 @@ pub fn move_dir(obj: *types.piece_info_t) void {
 /// direction, we see if moving in that direction would bring us closer
 /// to our destination, and if there is nothing in the way.  If so, we
 /// move in the first direction we find.
-pub fn move_path(obj: *types.piece_info_t) void {
+pub fn move_path(obj: *Piece) void {
     if (obj.loc == obj.func) {
         obj.func = @intFromEnum(globals.Function.NoFunc);
     } else {
@@ -529,7 +536,7 @@ pub fn move_path(obj: *types.piece_info_t) void {
 /// the paths to the destination, if we can't get there, we return.
 /// Then we mark the paths to the destination.  Then we choose a
 /// move.
-fn move_to_dest(obj: *types.piece_info_t, dest: c_long) void {
+fn move_to_dest(obj: *Piece, dest: i64) void {
     var path_map: [globals.MAP_SIZE]types.path_map_t = undefined;
     const fm_terrain = switch (piece_type(obj)) {
         .Army => .{
@@ -560,13 +567,13 @@ fn move_to_dest(obj: *types.piece_info_t, dest: c_long) void {
     }
     object.move_obj(obj, new_loc);
 }
-fn user_direction(obj: *types.piece_info_t, dir: globals.Direction) void {
+fn user_direction(obj: *Piece, dir: globals.Direction) void {
     user_dir(obj, dir);
 }
 
-pub fn reset_func(obj: *types.piece_info_t) void {
-    const cityp = object.find_city(obj.loc);
-    if (cityp != null) {
+pub fn reset_func(obj: *Piece) void {
+    const maybe_cityp = object.find_city(obj.loc);
+    if (maybe_cityp) |cityp| {
         const func = cityp.*.func[@intCast(obj.type)];
         if (func != @intFromEnum(globals.Function.NoFunc)) {
             obj.*.func = func;
@@ -575,7 +582,7 @@ pub fn reset_func(obj: *types.piece_info_t) void {
     }
 }
 
-pub fn user_skip(obj: *types.piece_info_t) void {
+pub fn user_skip(obj: *Piece) void {
     if (obj.type == @intFromEnum(globals.PieceType.Army) and
         globals.user_map[@intCast(obj.loc)].contents == 'O')
     {
@@ -585,7 +592,7 @@ pub fn user_skip(obj: *types.piece_info_t) void {
     }
 }
 
-pub fn user_fill(obj: *types.piece_info_t) void {
+pub fn user_fill(obj: *Piece) void {
     if (obj.type != @intFromEnum(globals.PieceType.Transport) and
         obj.type != @intFromEnum(globals.PieceType.Carrier))
     {
@@ -597,11 +604,11 @@ pub fn user_fill(obj: *types.piece_info_t) void {
 
 fn user_help() void {
     terminal.help(&data.help_user, data.user_lines);
-    terminal.prompt("Press any key to continue: ");
+    terminal.prompt("Press any key to continue: ", .{});
     _ = terminal.get_chx();
 }
 
-fn user_set_dir(obj: *types.piece_info_t) void {
+fn user_set_dir(obj: *Piece) void {
     const c = terminal.get_chx();
     const func: ?globals.Function = switch (c) {
         'Q' => .Move_NW,
@@ -621,19 +628,19 @@ fn user_set_dir(obj: *types.piece_info_t) void {
     }
 }
 
-pub fn user_wake(obj: *types.piece_info_t) void {
+pub fn user_wake(obj: *Piece) void {
     obj.*.func = @intFromEnum(globals.Function.NoFunc);
 }
 
-pub fn user_random(obj: *types.piece_info_t) void {
+pub fn user_random(obj: *Piece) void {
     obj.*.func = @intFromEnum(globals.Function.Random);
 }
 
-pub fn user_sentry(obj: *types.piece_info_t) void {
+pub fn user_sentry(obj: *Piece) void {
     obj.*.func = @intFromEnum(globals.Function.Sentry);
 }
 
-pub fn user_land(obj: *types.piece_info_t) void {
+pub fn user_land(obj: *Piece) void {
     if (obj.type != @intFromEnum(globals.PieceType.Fighter)) {
         display.complain();
     } else {
@@ -641,11 +648,11 @@ pub fn user_land(obj: *types.piece_info_t) void {
     }
 }
 
-pub fn user_explore(obj: *types.piece_info_t) void {
+pub fn user_explore(obj: *Piece) void {
     obj.*.func = @intFromEnum(globals.Function.Explore);
 }
 
-pub fn user_transport(obj: *types.piece_info_t) void {
+pub fn user_transport(obj: *Piece) void {
     if (obj.type != @intFromEnum(globals.PieceType.Army)) {
         display.complain();
     } else {
@@ -653,7 +660,7 @@ pub fn user_transport(obj: *types.piece_info_t) void {
     }
 }
 
-pub fn user_armyattack(obj: *types.piece_info_t) void {
+pub fn user_armyattack(obj: *Piece) void {
     if (obj.type != @intFromEnum(globals.PieceType.Army)) {
         display.complain();
     } else {
@@ -661,7 +668,7 @@ pub fn user_armyattack(obj: *types.piece_info_t) void {
     }
 }
 
-pub fn user_repair(obj: *types.piece_info_t) void {
+pub fn user_repair(obj: *Piece) void {
     if (obj.type == @intFromEnum(globals.PieceType.Army) or
         obj.type == @intFromEnum(globals.PieceType.Fighter))
     {
@@ -671,7 +678,7 @@ pub fn user_repair(obj: *types.piece_info_t) void {
     }
 }
 
-fn user_set_city_func(obj: *types.piece_info_t) void {
+fn user_set_city_func(obj: *Piece) void {
     const cityp = object.find_city(obj.loc);
     if (cityp == null or cityp.*.owner != @intFromEnum(globals.Ownership.User)) {
         display.complain();
@@ -697,7 +704,7 @@ fn user_set_city_func(obj: *types.piece_info_t) void {
     }
 }
 
-fn user_build(obj: *types.piece_info_t) void {
+fn user_build(obj: *Piece) void {
     if (globals.user_map[@intCast(obj.loc)].contents != 'O') {
         display.complain();
         return;
@@ -707,7 +714,7 @@ fn user_build(obj: *types.piece_info_t) void {
     object.set_prod(cityp);
 }
 
-fn user_dir(obj: *types.piece_info_t, dir: globals.Direction) void {
+fn user_dir(obj: *Piece, dir: globals.Direction) void {
     const loc = obj.loc + dir_offset(dir);
 
     if (object.good_loc(obj, loc)) {
@@ -715,7 +722,7 @@ fn user_dir(obj: *types.piece_info_t, dir: globals.Direction) void {
         return;
     }
     if (!globals.map[@intCast(loc)].on_board) {
-        terminal.@"error"("You cannot move to the edge of the world.");
+        terminal.@"error"("You cannot move to the edge of the world.", .{});
         display.delay();
         return;
     }
@@ -726,36 +733,33 @@ fn user_dir(obj: *types.piece_info_t, dir: globals.Direction) void {
     }
 }
 
-fn user_dir_army(obj: *types.piece_info_t, loc: c_long) void {
+fn user_dir_army(obj: *Piece, loc: i64) void {
     const uloc: usize = @intCast(loc);
     const obj_uloc: usize = @intCast(obj.loc);
 
     if (globals.user_map[uloc].contents == 'O') {
         move_army_to_city(obj, loc);
     } else if (globals.user_map[uloc].contents == 'T') {
-        fatal(obj, loc,
-            "Sorry, sir.  There is no more room on the transport.  Do you insist? ",
-            "Your army jumped into the briny and drowned.");
+        fatal(obj, loc, "Sorry, sir.  There is no more room on the transport.  Do you insist? ", "Your army jumped into the briny and drowned.");
     } else if (globals.map[uloc].contents == data.MAP_SEA) {
         var enemy_killed = false;
 
-        if (!terminal.getyn(
-            "Troops can't walk on water, sir.  Do you really want to go to sea? "))
+        if (!terminal.getyn("Troops can't walk on water, sir.  Do you really want to go to sea? "))
             return;
 
         if (globals.user_map[obj_uloc].contents == 'T') {
-            terminal.comment("Your army jumped into the briny and drowned.");
-            terminal.ksend("Your army jumped into the briny and drowned.\n");
+            terminal.comment("Your army jumped into the briny and drowned.", .{});
+            terminal.ksend("Your army jumped into the briny and drowned.\n", .{});
         } else if (globals.user_map[uloc].contents == data.MAP_SEA) {
-            terminal.comment("Your army marched dutifully into the sea and drowned.");
-            terminal.ksend("Your army marched dutifully into the sea and drowned.\n");
+            terminal.comment("Your army marched dutifully into the sea and drowned.", .{});
+            terminal.ksend("Your army marched dutifully into the sea and drowned.\n", .{});
         } else {
             enemy_killed = std.ascii.isLower(globals.user_map[uloc].contents);
             attack.attack(obj, loc);
 
             if (obj.hits > 0) {
-                terminal.comment("Your army regretfully drowns after its successful assault.");
-                terminal.ksend("Your army regretfully drowns after its successful assault.");
+                terminal.comment("Your army regretfully drowns after its successful assault.", .{});
+                terminal.ksend("Your army regretfully drowns after its successful assault.\n", .{});
             }
         }
         if (obj.hits > 0) {
@@ -773,13 +777,11 @@ fn user_dir_army(obj: *types.piece_info_t, loc: c_long) void {
     }
 }
 
-fn user_dir_fighter(obj: *types.piece_info_t, loc: c_long) void {
+fn user_dir_fighter(obj: *Piece, loc: i64) void {
     const uloc: usize = @intCast(loc);
 
     if (globals.map[uloc].contents == data.MAP_CITY) {
-        fatal(obj, loc,
-            "That's never worked before, sir.  Do you really want to try? ",
-            "Your fighter was shot down.");
+        fatal(obj, loc, "That's never worked before, sir.  Do you really want to try? ", "Your fighter was shot down.");
     } else if (std.ascii.isUpper(globals.user_map[uloc].contents)) {
         if (!terminal.getyn("Sir, those are our men!  Do you really want to attack them? "))
             return;
@@ -789,38 +791,31 @@ fn user_dir_fighter(obj: *types.piece_info_t, loc: c_long) void {
     }
 }
 
-fn user_dir_ship(obj: *types.piece_info_t, loc: c_long) void {
-    const c = @cImport({
-        @cInclude("stdio.h");
-    });
+fn user_dir_ship(obj: *Piece, loc: i64) void {
     const uloc: usize = @intCast(loc);
+    const name = std.mem.sliceTo(&data.piece_attr[@intCast(obj.type)].name, 0);
 
     if (globals.map[uloc].contents == data.MAP_CITY) {
-        _ = c.snprintf(&globals.jnkbuf, globals.STRSIZE, "Your %s broke up on shore.",
-            @as([*c]const u8, &data.piece_attr[@intCast(obj.type)].name));
-
-        fatal(obj, loc,
-            "That's never worked before, sir.  Do you really want to try? ",
-            &globals.jnkbuf);
+        if (terminal.getyn("That's never worked before, sir.  Do you really want to try? ")) {
+            terminal.comment("Your {s} broke up on shore.", .{name});
+            object.kill_obj(obj, loc);
+        }
     } else if (globals.map[uloc].contents == data.MAP_LAND) {
         var enemy_killed = false;
 
-        if (!terminal.getyn(
-            "Ships need sea to float, sir.  Do you really want to go ashore? "))
+        if (!terminal.getyn("Ships need sea to float, sir.  Do you really want to go ashore? "))
             return;
 
         if (globals.user_map[uloc].contents == data.MAP_LAND) {
-            terminal.comment("Your %s broke up on shore.", @as([*c]const u8, &data.piece_attr[@intCast(obj.type)].name));
-            terminal.ksend("Your %s broke up on shore.", @as([*c]const u8, &data.piece_attr[@intCast(obj.type)].name));
+            terminal.comment("Your {s} broke up on shore.", .{name});
+            terminal.ksend("Your {s} broke up on shore.\n", .{name});
         } else {
             enemy_killed = std.ascii.isLower(globals.user_map[uloc].contents);
             attack.attack(obj, loc);
 
             if (obj.hits > 0) {
-                terminal.comment("Your %s breaks up after its successful assault.",
-                    @as([*c]const u8, &data.piece_attr[@intCast(obj.type)].name));
-                terminal.ksend("Your %s breaks up after its successful assault.",
-                    @as([*c]const u8, &data.piece_attr[@intCast(obj.type)].name));
+                terminal.comment("Your {s} breaks up after its successful assault.", .{name});
+                terminal.ksend("Your {s} breaks up after its successful assault.\n", .{name});
             }
         }
         if (obj.hits > 0) {
@@ -836,23 +831,21 @@ fn user_dir_ship(obj: *types.piece_info_t, loc: c_long) void {
     }
 }
 
-fn move_army_to_city(obj: *types.piece_info_t, city_loc: c_long) void {
+fn move_army_to_city(obj: *Piece, city_loc: i64) void {
     const tt = object.find_nfull(@intFromEnum(globals.PieceType.Transport), city_loc);
     if (tt != null) {
         object.move_obj(obj, city_loc);
     } else {
-        fatal(obj, city_loc,
-            "That's our city, sir!  Do you really want to attack the garrison? ",
-            "Your rebel army was liquidated.");
+        fatal(obj, city_loc, "That's our city, sir!  Do you really want to attack the garrison? ", "Your rebel army was liquidated.");
     }
 }
 
 pub fn user_cancel_auto() void {
     if (!globals.automove) {
-        terminal.comment("Not in auto mode!");
+        terminal.comment("Not in auto mode!", .{});
     } else {
         globals.automove = false;
-        terminal.comment("Auto mode cancelled.");
+        terminal.comment("Auto mode cancelled.", .{});
     }
 }
 
@@ -860,18 +853,18 @@ fn user_redraw() void {
     display.redraw();
 }
 
-fn fatal(obj: *types.piece_info_t, loc: c_long, message: [*c]const u8, response: [*c]const u8) void {
+fn fatal(obj: *Piece, loc: i64, message: [*:0]const u8, comptime response: []const u8) void {
     if (terminal.getyn(message)) {
-        terminal.comment(response);
+        terminal.comment(response, .{});
         object.kill_obj(obj, loc);
     }
 }
 
-inline fn type_is(obj: *const types.piece_info_t, ptype: globals.PieceType) bool {
+inline fn type_is(obj: *const Piece, ptype: globals.PieceType) bool {
     return obj.type == @intFromEnum(ptype);
 }
 
-inline fn piece_type(obj: *const types.piece_info_t) globals.PieceType {
+inline fn piece_type(obj: *const Piece) globals.PieceType {
     return @enumFromInt(obj.type);
 }
 
@@ -879,11 +872,11 @@ inline fn piece_attr(ptype: globals.PieceType) types.piece_attr_t {
     return data.piece_attr[@intCast(@intFromEnum(ptype))];
 }
 
-inline fn function(obj: *const types.piece_info_t) globals.Function {
+inline fn function(obj: *const Piece) globals.Function {
     return @enumFromInt(obj.func);
 }
 
-inline fn has_destination(obj: *const types.piece_info_t) bool {
+inline fn has_destination(obj: *const Piece) bool {
     return obj.func > 0;
 }
 
@@ -896,6 +889,6 @@ inline fn to_move_dir(func: globals.Function) DirectionConversionError!globals.D
     } else return DirectionConversionError.NotADirectionFunction;
 }
 
-pub inline fn dir_offset(dir: globals.Direction) c_int {
+pub inline fn dir_offset(dir: globals.Direction) i32 {
     return data.dir_offset[@intCast(@intFromEnum(dir))];
 }

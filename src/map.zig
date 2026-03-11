@@ -19,8 +19,8 @@ const NUM_CITY = globals.NUM_CITY;
 const MAP_SEA = data.MAP_SEA;
 const MAP_LAND = data.MAP_LAND;
 const MAP_CITY = data.MAP_CITY;
-const INFINITY: c_int = 10000000;
-const W_TT_BUILD: c_int = -1;
+const INFINITY: i32 = 10000000;
+const W_TT_BUILD: i32 = -1;
 
 const USER = @intFromEnum(globals.Ownership.User);
 const COMP = @intFromEnum(globals.Ownership.Comp);
@@ -28,11 +28,11 @@ const UNOWNED = @intFromEnum(globals.Ownership.Unowned);
 const TRANSPORT = @intFromEnum(globals.PieceType.Transport);
 
 // Terrain type constants (used as bitmasks)
-const T_UNKNOWN: c_int = 0;
-const T_PATH: c_int = 1;
-const T_LAND: c_int = 2;
-const T_WATER: c_int = 4;
-const T_AIR: c_int = T_LAND | T_WATER;
+const T_UNKNOWN: i32 = 0;
+const T_PATH: i32 = 1;
+const T_LAND: i32 = 2;
+const T_WATER: i32 = 4;
+const T_AIR: i32 = T_LAND | T_WATER;
 
 // Static perimeter lists
 var p1: perimeter_t = .{};
@@ -41,15 +41,15 @@ var p3: perimeter_t = .{};
 var p4: perimeter_t = .{};
 
 // Best objective found so far
-var best_cost: c_int = INFINITY;
-var best_loc: c_long = 0;
+var best_cost: i32 = INFINITY;
+var best_loc: i64 = 0;
 
 // Pre-initialized path map template
 var pmap_init: [MAP_SIZE]path_map_t = undefined;
 var init_done: bool = false;
 
 // Direction order for vmap_find_dir (prefer diagonals)
-const order = [8]c_int{
+const order = [8]i32{
     @intFromEnum(globals.Direction.Northwest),
     @intFromEnum(globals.Direction.Northeast),
     @intFromEnum(globals.Direction.Southwest),
@@ -60,8 +60,8 @@ const order = [8]c_int{
     @intFromEnum(globals.Direction.South),
 };
 
-// Helper: check if char is in a null-terminated C string
-fn char_in(c: u8, set: [*c]const u8) ?usize {
+// Helper: check if char is in a null-terminated string
+fn char_in(c: u8, set: [*:0]const u8) ?usize {
     var i: usize = 0;
     while (set[i] != 0) : (i += 1) {
         if (set[i] == c) return i;
@@ -73,12 +73,12 @@ fn char_in(c: u8, set: [*c]const u8) ?usize {
 // Continent mapping
 // ============================================================
 
-pub fn vmap_cont(cont_map: [*c]c_int, vmap: [*c]view_map_t, loc: c_long, bad_terrain: u8) void {
-    @memset(cont_map[0..@intCast(MAP_SIZE)], 0);
+pub fn vmap_cont(cont_map: *[MAP_SIZE]i32, vmap: *[MAP_SIZE]view_map_t, loc: i64, bad_terrain: u8) void {
+    @memset(cont_map, 0);
     vmap_mark_up_cont(cont_map, vmap, loc, bad_terrain);
 }
 
-pub fn vmap_mark_up_cont(cont_map: [*c]c_int, vmap: [*c]view_map_t, loc: c_long, bad_terrain: u8) void {
+pub fn vmap_mark_up_cont(cont_map: *[MAP_SIZE]i32, vmap: *[MAP_SIZE]view_map_t, loc: i64, bad_terrain: u8) void {
     var from: *perimeter_t = &p1;
     var to: *perimeter_t = &p2;
 
@@ -92,7 +92,7 @@ pub fn vmap_mark_up_cont(cont_map: [*c]c_int, vmap: [*c]view_map_t, loc: c_long,
         var i: usize = 0;
         while (i < @as(usize, @intCast(from.len))) : (i += 1) {
             for (data.dir_offset[0..8]) |offset| {
-                const new_loc: c_long = from.list[i] + @as(c_long, offset);
+                const new_loc: i64 = from.list[i] + @as(i64, offset);
                 const nu: usize = @intCast(new_loc);
                 if (!globals.map[nu].on_board) continue;
                 if (cont_map[nu] != 0) continue;
@@ -121,12 +121,12 @@ pub fn vmap_mark_up_cont(cont_map: [*c]c_int, vmap: [*c]view_map_t, loc: c_long,
     }
 }
 
-pub fn rmap_cont(cont_map: [*c]c_int, loc: c_long, bad_terrain: u8) void {
-    @memset(cont_map[0..@intCast(MAP_SIZE)], 0);
+pub fn rmap_cont(cont_map: *[MAP_SIZE]i32, loc: i64, bad_terrain: u8) void {
+    @memset(cont_map, 0);
     rmap_mark_up_cont(cont_map, loc, bad_terrain);
 }
 
-fn rmap_mark_up_cont(cont_map: [*c]c_int, loc: c_long, bad_terrain: u8) void {
+fn rmap_mark_up_cont(cont_map: *[MAP_SIZE]i32, loc: i64, bad_terrain: u8) void {
     const uloc: usize = @intCast(loc);
     if (!globals.map[uloc].on_board) return;
     if (cont_map[uloc] != 0) return;
@@ -135,7 +135,7 @@ fn rmap_mark_up_cont(cont_map: [*c]c_int, loc: c_long, bad_terrain: u8) void {
     cont_map[uloc] = 1;
 
     for (data.dir_offset[0..8]) |offset| {
-        rmap_mark_up_cont(cont_map, loc + @as(c_long, offset), bad_terrain);
+        rmap_mark_up_cont(cont_map, loc + @as(i64, offset), bad_terrain);
     }
 }
 
@@ -143,7 +143,7 @@ fn rmap_mark_up_cont(cont_map: [*c]c_int, loc: c_long, bad_terrain: u8) void {
 // Continent scanning
 // ============================================================
 
-pub fn vmap_cont_scan(cont_map: [*c]c_int, vmap: [*c]view_map_t) scan_counts_t {
+pub fn vmap_cont_scan(cont_map: *[MAP_SIZE]i32, vmap: *[MAP_SIZE]view_map_t) scan_counts_t {
     var counts: scan_counts_t = std.mem.zeroes(scan_counts_t);
 
     for (0..@intCast(MAP_SIZE)) |i| {
@@ -174,9 +174,8 @@ pub fn vmap_cont_scan(cont_map: [*c]c_int, vmap: [*c]view_map_t) scan_counts_t {
                 MAP_LAND, MAP_SEA => {},
                 else => {
                     if (globals.map[i].contents == MAP_CITY) {
-                        const cityp = globals.map[i].cityp;
-                        if (cityp != null) {
-                            switch (cityp.*.owner) {
+                        if (globals.map[i].cityp) |cityp| {
+                            switch (cityp.owner) {
                                 USER => counts.user_cities += 1,
                                 COMP => counts.comp_cities += 1,
                                 UNOWNED => counts.unowned_cities += 1,
@@ -191,7 +190,7 @@ pub fn vmap_cont_scan(cont_map: [*c]c_int, vmap: [*c]view_map_t) scan_counts_t {
     return counts;
 }
 
-pub fn rmap_cont_scan(cont_map: [*c]c_int) scan_counts_t {
+pub fn rmap_cont_scan(cont_map: *[MAP_SIZE]i32) scan_counts_t {
     var counts: scan_counts_t = std.mem.zeroes(scan_counts_t);
 
     for (0..@intCast(MAP_SIZE)) |i| {
@@ -203,11 +202,11 @@ pub fn rmap_cont_scan(cont_map: [*c]c_int) scan_counts_t {
     return counts;
 }
 
-pub fn map_cont_edge(cont_map: [*c]c_int, loc: c_long) bool {
+pub fn map_cont_edge(cont_map: *[MAP_SIZE]i32, loc: i64) bool {
     if (cont_map[@intCast(loc)] == 0) return false;
 
     for (data.dir_offset[0..8]) |offset| {
-        const new_loc: c_long = loc + @as(c_long, offset);
+        const new_loc: i64 = loc + @as(i64, offset);
         const nu: usize = @intCast(new_loc);
         if (globals.map[nu].on_board and cont_map[nu] == 0) return true;
     }
@@ -218,7 +217,7 @@ pub fn map_cont_edge(cont_map: [*c]c_int, loc: c_long) bool {
 // Path finding - perimeter operations
 // ============================================================
 
-fn start_perimeter(pmap: [*c]path_map_t, perim: *perimeter_t, loc: c_long, terrain: c_int) void {
+fn start_perimeter(pmap: *[MAP_SIZE]path_map_t, perim: *perimeter_t, loc: i64, terrain: i32) void {
     if (!init_done) {
         init_done = true;
         for (0..@intCast(MAP_SIZE)) |i| {
@@ -227,7 +226,7 @@ fn start_perimeter(pmap: [*c]path_map_t, perim: *perimeter_t, loc: c_long, terra
             pmap_init[i].terrain = @intCast(T_UNKNOWN);
         }
     }
-    @memcpy(pmap[0..@intCast(MAP_SIZE)], &pmap_init);
+    @memcpy(pmap, &pmap_init);
 
     const uloc: usize = @intCast(loc);
     pmap[uloc].cost = 0;
@@ -241,7 +240,7 @@ fn start_perimeter(pmap: [*c]path_map_t, perim: *perimeter_t, loc: c_long, terra
     best_loc = loc;
 }
 
-fn add_cell(pmap: [*c]path_map_t, new_loc: c_long, perim: *perimeter_t, terrain: c_int, cur_cost: c_int, inc_cost: c_int) void {
+fn add_cell(pmap: *[MAP_SIZE]path_map_t, new_loc: i64, perim: *perimeter_t, terrain: i32, cur_cost: i32, inc_cost: i32) void {
     const nu: usize = @intCast(new_loc);
     pmap[nu].terrain = @intCast(terrain);
     pmap[nu].inc_cost = inc_cost;
@@ -251,19 +250,19 @@ fn add_cell(pmap: [*c]path_map_t, new_loc: c_long, perim: *perimeter_t, terrain:
     perim.len += 1;
 }
 
-fn terrain_type(pmap: [*c]path_map_t, vmap: [*c]view_map_t, move_info: [*c]move_info_t, from_loc: c_long, to_loc: c_long) c_int {
+fn terrain_type(pmap: *[MAP_SIZE]path_map_t, vmap: *[MAP_SIZE]view_map_t, move_info: *move_info_t, from_loc: i64, to_loc: i64) i32 {
     const tu: usize = @intCast(to_loc);
     const fu: usize = @intCast(from_loc);
 
     if (vmap[tu].contents == MAP_LAND) return T_LAND;
     if (vmap[tu].contents == MAP_SEA) return T_WATER;
     if (vmap[tu].contents == '%') return T_UNKNOWN;
-    if (vmap[tu].contents == ' ') return @as(c_int, pmap[fu].terrain);
+    if (vmap[tu].contents == ' ') return @as(i32, pmap[fu].terrain);
 
     return switch (globals.map[tu].contents) {
         MAP_SEA => T_WATER,
         MAP_LAND => T_LAND,
-        MAP_CITY => if (globals.map[tu].cityp != null and globals.map[tu].cityp.*.owner == move_info.*.city_owner)
+        MAP_CITY => if (globals.map[tu].cityp != null and globals.map[tu].cityp.?.owner == move_info.*.city_owner)
             T_WATER
         else
             T_UNKNOWN,
@@ -271,7 +270,7 @@ fn terrain_type(pmap: [*c]path_map_t, vmap: [*c]view_map_t, move_info: [*c]move_
     };
 }
 
-fn objective_cost(vmap: [*c]view_map_t, move_info: [*c]move_info_t, loc: c_long, base_cost: c_int) c_int {
+fn objective_cost(vmap: *[MAP_SIZE]view_map_t, move_info: *move_info_t, loc: i64, base_cost: i32) i32 {
     const uloc: usize = @intCast(loc);
     const idx = char_in(vmap[uloc].contents, move_info.*.objectives) orelse return INFINITY;
 
@@ -280,11 +279,10 @@ fn objective_cost(vmap: [*c]view_map_t, move_info: [*c]move_info_t, loc: c_long,
 
     switch (w) {
         W_TT_BUILD => {
-            const cityp = object.find_city(loc);
-            if (cityp == null) return base_cost + 2;
-            if (cityp.*.prod != TRANSPORT) return base_cost + 2;
+            const cityp = object.find_city(loc) orelse return base_cost + 2;
+            if (cityp.prod != TRANSPORT) return base_cost + 2;
 
-            var wt: c_int = @as(c_int, data.piece_attr[TRANSPORT].build_time) - @as(c_int, @truncate(cityp.*.work));
+            var wt: i32 = @as(i32, data.piece_attr[TRANSPORT].build_time) - @as(i32, @truncate(cityp.work));
             wt *= 2;
             if (wt < base_cost + 2) wt = base_cost + 2;
             return wt;
@@ -294,21 +292,21 @@ fn objective_cost(vmap: [*c]view_map_t, move_info: [*c]move_info_t, loc: c_long,
 }
 
 fn expand_perimeter(
-    pmap: [*c]path_map_t,
-    vmap: [*c]view_map_t,
-    move_info: [*c]move_info_t,
+    pmap: *[MAP_SIZE]path_map_t,
+    vmap: *[MAP_SIZE]view_map_t,
+    move_info: *move_info_t,
     curp: *perimeter_t,
-    terrain_mask: c_int,
-    cur_cost: c_int,
-    inc_wcost: c_int,
-    inc_lcost: c_int,
+    terrain_mask: i32,
+    cur_cost: i32,
+    inc_wcost: i32,
+    inc_lcost: i32,
     waterp: ?*perimeter_t,
     landp: ?*perimeter_t,
 ) void {
     var i: usize = 0;
     while (i < @as(usize, @intCast(curp.len))) : (i += 1) {
         for (data.dir_offset[0..8]) |offset| {
-            const new_loc: c_long = curp.list[i] + @as(c_long, offset);
+            const new_loc: i64 = curp.list[i] + @as(i64, offset);
             const nu: usize = @intCast(new_loc);
             if (!globals.map[nu].on_board) continue;
 
@@ -347,12 +345,12 @@ fn expand_perimeter(
 // Path finding - find objectives
 // ============================================================
 
-pub fn vmap_find_xobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, move_info: [*c]move_info_t, start: c_int, expand: c_int) c_long {
+pub fn vmap_find_xobj(path_map_arg: *[MAP_SIZE]path_map_t, vmap: *[MAP_SIZE]view_map_t, loc: i64, move_info: *move_info_t, start: i32, expand: i32) i64 {
     var from: *perimeter_t = &p1;
     var to: *perimeter_t = &p2;
 
     start_perimeter(path_map_arg, from, loc, start);
-    var cur_cost: c_int = 0;
+    var cur_cost: i32 = 0;
 
     while (true) {
         to.len = 0;
@@ -369,19 +367,19 @@ pub fn vmap_find_xobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: c
     }
 }
 
-pub fn vmap_find_aobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, move_info: [*c]move_info_t) c_long {
+pub fn vmap_find_aobj(path_map_arg: *[MAP_SIZE]path_map_t, vmap: *[MAP_SIZE]view_map_t, loc: i64, move_info: *move_info_t) i64 {
     return vmap_find_xobj(path_map_arg, vmap, loc, move_info, T_LAND, T_AIR);
 }
 
-pub fn vmap_find_wobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, move_info: [*c]move_info_t) c_long {
+pub fn vmap_find_wobj(path_map_arg: *[MAP_SIZE]path_map_t, vmap: *[MAP_SIZE]view_map_t, loc: i64, move_info: *move_info_t) i64 {
     return vmap_find_xobj(path_map_arg, vmap, loc, move_info, T_WATER, T_WATER);
 }
 
-pub fn vmap_find_lobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, move_info: [*c]move_info_t) c_long {
+pub fn vmap_find_lobj(path_map_arg: *[MAP_SIZE]path_map_t, vmap: *[MAP_SIZE]view_map_t, loc: i64, move_info: *move_info_t) i64 {
     return vmap_find_xobj(path_map_arg, vmap, loc, move_info, T_LAND, T_LAND);
 }
 
-pub fn vmap_find_lwobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, move_info: [*c]move_info_t, beat_cost: c_int) c_long {
+pub fn vmap_find_lwobj(path_map_arg: *[MAP_SIZE]path_map_t, vmap: *[MAP_SIZE]view_map_t, loc: i64, move_info: *move_info_t, beat_cost: i32) i64 {
     var cur_land: *perimeter_t = &p1;
     var cur_water: *perimeter_t = &p2;
     var new_water: *perimeter_t = &p3;
@@ -390,7 +388,7 @@ pub fn vmap_find_lwobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: 
     start_perimeter(path_map_arg, cur_land, loc, T_LAND);
     cur_water.len = 0;
     best_cost = beat_cost;
-    var cur_cost: c_int = 0;
+    var cur_cost: i32 = 0;
 
     while (true) {
         new_water.len = 0;
@@ -414,7 +412,7 @@ pub fn vmap_find_lwobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: 
     }
 }
 
-pub fn vmap_find_wlobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, move_info: [*c]move_info_t) c_long {
+pub fn vmap_find_wlobj(path_map_arg: *[MAP_SIZE]path_map_t, vmap: *[MAP_SIZE]view_map_t, loc: i64, move_info: *move_info_t) i64 {
     var cur_land: *perimeter_t = &p1;
     var cur_water: *perimeter_t = &p2;
     var new_water: *perimeter_t = &p3;
@@ -422,7 +420,7 @@ pub fn vmap_find_wlobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: 
 
     start_perimeter(path_map_arg, cur_water, loc, T_WATER);
     cur_land.len = 0;
-    var cur_cost: c_int = 0;
+    var cur_cost: i32 = 0;
 
     while (true) {
         new_water.len = 0;
@@ -450,7 +448,7 @@ pub fn vmap_find_wlobj(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, loc: 
 // Find destination (shortest path to known location)
 // ============================================================
 
-pub fn vmap_find_dest(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, cur_loc: c_long, dest_loc: c_long, owner: c_int, terrain: c_int) c_long {
+pub fn vmap_find_dest(path_map_arg: *[MAP_SIZE]path_map_t, vmap: *[MAP_SIZE]view_map_t, cur_loc: i64, dest_loc: i64, owner: i32, terrain: i32) i64 {
     const du: usize = @intCast(dest_loc);
     const old_contents = vmap[du].contents;
     vmap[du].contents = '%'; // mark objective
@@ -463,10 +461,10 @@ pub fn vmap_find_dest(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, cur_lo
     var from: *perimeter_t = &p1;
     var to: *perimeter_t = &p2;
 
-    const start_terrain: c_int = if (terrain == T_AIR) T_LAND else terrain;
+    const start_terrain: i32 = if (terrain == T_AIR) T_LAND else terrain;
 
     start_perimeter(path_map_arg, from, cur_loc, start_terrain);
-    var cur_cost: c_int = 0;
+    var cur_cost: i32 = 0;
 
     while (true) {
         to.len = 0;
@@ -486,7 +484,7 @@ pub fn vmap_find_dest(path_map_arg: [*c]path_map_t, vmap: [*c]view_map_t, cur_lo
 // Path marking
 // ============================================================
 
-pub fn vmap_mark_path(pmap: [*c]path_map_t, vmap: [*c]view_map_t, dest: c_long) void {
+pub fn vmap_mark_path(pmap: *[MAP_SIZE]path_map_t, vmap: *[MAP_SIZE]view_map_t, dest: i64) void {
     const du: usize = @intCast(dest);
 
     if (pmap[du].cost == 0) return;
@@ -495,32 +493,32 @@ pub fn vmap_mark_path(pmap: [*c]path_map_t, vmap: [*c]view_map_t, dest: c_long) 
     pmap[du].terrain = @intCast(T_PATH);
 
     for (data.dir_offset[0..8]) |offset| {
-        const new_dest: c_long = dest + @as(c_long, offset);
+        const new_dest: i64 = dest + @as(i64, offset);
         const nu: usize = @intCast(new_dest);
         if (pmap[nu].cost == pmap[du].cost - pmap[du].inc_cost)
             vmap_mark_path(pmap, vmap, new_dest);
     }
 }
 
-pub fn vmap_mark_adjacent(pmap: [*c]path_map_t, loc: c_long) void {
+pub fn vmap_mark_adjacent(pmap: *[MAP_SIZE]path_map_t, loc: i64) void {
     for (data.dir_offset[0..8]) |offset| {
-        const new_loc: c_long = loc + @as(c_long, offset);
+        const new_loc: i64 = loc + @as(i64, offset);
         const nu: usize = @intCast(new_loc);
         if (globals.map[nu].on_board)
             pmap[nu].terrain = @intCast(T_PATH);
     }
 }
 
-pub fn vmap_mark_near_path(pmap: [*c]path_map_t, loc: c_long) void {
-    var hit_loc = [_]c_int{0} ** 8;
+pub fn vmap_mark_near_path(pmap: *[MAP_SIZE]path_map_t, loc: i64) void {
+    var hit_loc = [_]i32{0} ** 8;
 
     for (0..8) |i| {
-        const new_loc: c_long = loc + @as(c_long, data.dir_offset[i]);
+        const new_loc: i64 = loc + @as(i64, data.dir_offset[i]);
         const nu: usize = @intCast(new_loc);
         if (!globals.map[nu].on_board) continue;
 
         for (data.dir_offset[0..8]) |offset2| {
-            const xloc: c_long = new_loc + @as(c_long, offset2);
+            const xloc: i64 = new_loc + @as(i64, offset2);
             const xu: usize = @intCast(xloc);
             if (globals.map[xu].on_board and xloc != loc and pmap[xu].terrain == @as(u8, @intCast(T_PATH))) {
                 hit_loc[i] = 1;
@@ -530,7 +528,7 @@ pub fn vmap_mark_near_path(pmap: [*c]path_map_t, loc: c_long) void {
     }
     for (0..8) |i| {
         if (hit_loc[i] != 0) {
-            const target: usize = @intCast(loc + @as(c_long, data.dir_offset[i]));
+            const target: usize = @intCast(loc + @as(i64, data.dir_offset[i]));
             pmap[target].terrain = @intCast(T_PATH);
         }
     }
@@ -540,15 +538,15 @@ pub fn vmap_mark_near_path(pmap: [*c]path_map_t, loc: c_long) void {
 // Direction finding
 // ============================================================
 
-pub fn vmap_find_dir(pmap: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, terrain: [*c]const u8, adj_char: [*c]const u8) c_long {
+pub fn vmap_find_dir(pmap: *[MAP_SIZE]path_map_t, vmap: *[MAP_SIZE]view_map_t, loc: i64, terrain: [*:0]const u8, adj_char: [*:0]const u8) i64 {
     if (globals.trace_pmap) display.print_pzoom("Before vmap_find_dir:", pmap, vmap);
 
-    var bestcount: c_int = -INFINITY;
-    var bestpath: c_int = -1;
-    var bestloc: c_long = loc;
+    var bestcount: i32 = -INFINITY;
+    var bestpath: i32 = -1;
+    var bestloc: i64 = loc;
 
     for (order) |dir| {
-        const new_loc: c_long = loc + @as(c_long, data.dir_offset[@intCast(dir)]);
+        const new_loc: i64 = loc + @as(i64, data.dir_offset[@intCast(dir)]);
         const nu: usize = @intCast(new_loc);
         if (pmap[nu].terrain == @as(u8, @intCast(T_PATH))) {
             if (char_in(vmap[nu].contents, terrain) != null) {
@@ -568,30 +566,30 @@ pub fn vmap_find_dir(pmap: [*c]path_map_t, vmap: [*c]view_map_t, loc: c_long, te
     return bestloc;
 }
 
-pub fn vmap_count_adjacent(vmap: [*c]view_map_t, loc: c_long, adj_char: [*c]const u8) c_int {
+pub fn vmap_count_adjacent(vmap: *[MAP_SIZE]view_map_t, loc: i64, adj_char: [*:0]const u8) i32 {
     // compute length of adj_char
-    var len: c_int = 0;
+    var len: i32 = 0;
     while (adj_char[@intCast(len)] != 0) : (len += 1) {}
 
-    var count: c_int = 0;
+    var count: i32 = 0;
 
     for (data.dir_offset[0..8]) |offset| {
-        const new_loc: c_long = loc + @as(c_long, offset);
+        const new_loc: i64 = loc + @as(i64, offset);
         const nu: usize = @intCast(new_loc);
         if (globals.map[nu].on_board) {
             if (char_in(vmap[nu].contents, adj_char)) |idx| {
-                count += 8 * (len - @as(c_int, @intCast(idx)));
+                count += 8 * (len - @as(i32, @intCast(idx)));
             }
         }
     }
     return count;
 }
 
-fn vmap_count_path(pmap: [*c]path_map_t, loc: c_long) c_int {
-    var count: c_int = 0;
+fn vmap_count_path(pmap: *[MAP_SIZE]path_map_t, loc: i64) i32 {
+    var count: i32 = 0;
 
     for (data.dir_offset[0..8]) |offset| {
-        const new_loc: c_long = loc + @as(c_long, offset);
+        const new_loc: i64 = loc + @as(i64, offset);
         const nu: usize = @intCast(new_loc);
         if (globals.map[nu].on_board and pmap[nu].terrain == @as(u8, @intCast(T_PATH)))
             count += 1;
@@ -603,12 +601,12 @@ fn vmap_count_path(pmap: [*c]path_map_t, loc: c_long) c_int {
 // Explore location pruning
 // ============================================================
 
-pub fn vmap_prune_explore_locs(vmap: [*c]view_map_t) void {
+pub fn vmap_prune_explore_locs(vmap: *[MAP_SIZE]view_map_t) void {
     var pmap: [MAP_SIZE]path_map_t = std.mem.zeroes([MAP_SIZE]path_map_t);
     var from: *perimeter_t = &p1;
     var to: *perimeter_t = &p2;
     from.len = 0;
-    var explored: c_int = 0;
+    var explored: i32 = 0;
 
     // build initial path map and perimeter list
     for (0..@intCast(MAP_SIZE)) |loc| {
@@ -616,7 +614,7 @@ pub fn vmap_prune_explore_locs(vmap: [*c]view_map_t) void {
             explored += 1;
         } else {
             for (data.dir_offset[0..8]) |offset| {
-                const new_loc: c_long = @as(c_long, @intCast(loc)) + @as(c_long, offset);
+                const new_loc: i64 = @as(i64, @intCast(loc)) + @as(i64, offset);
                 if (new_loc < 0 or new_loc >= MAP_SIZE) {
                     // ignore off map
                 } else if (vmap[@intCast(new_loc)].contents == ' ') {
@@ -638,9 +636,9 @@ pub fn vmap_prune_explore_locs(vmap: [*c]view_map_t) void {
 
     // high probability predictions
     while (true) {
-        if (from.len + @as(c_long, explored) == MAP_SIZE) return;
+        if (from.len + @as(i64, explored) == MAP_SIZE) return;
         to.len = 0;
-        var copied: c_long = 0;
+        var copied: i64 = 0;
 
         var i: usize = 0;
         while (i < @as(usize, @intCast(from.len))) : (i += 1) {
@@ -673,7 +671,7 @@ pub fn vmap_prune_explore_locs(vmap: [*c]view_map_t) void {
     if (globals.print_vmap == 'I') display.print_xzoom(vmap);
 
     // one pass for medium probability predictions
-    if (from.len + @as(c_long, explored) == MAP_SIZE) return;
+    if (from.len + @as(i64, explored) == MAP_SIZE) return;
     to.len = 0;
 
     {
@@ -701,12 +699,12 @@ pub fn vmap_prune_explore_locs(vmap: [*c]view_map_t) void {
 
     // multiple low probability passes
     while (true) {
-        if (from.len + @as(c_long, explored) >= MAP_SIZE - MAP_HEIGHT) {
+        if (from.len + @as(i64, explored) >= MAP_SIZE - MAP_HEIGHT) {
             if (globals.print_vmap == 'I') display.print_xzoom(vmap);
             return;
         }
         to.len = 0;
-        var copied: c_long = 0;
+        var copied: i64 = 0;
 
         var i: usize = 0;
         while (i < @as(usize, @intCast(from.len))) : (i += 1) {
@@ -734,7 +732,7 @@ pub fn vmap_prune_explore_locs(vmap: [*c]view_map_t) void {
     if (globals.print_vmap == 'I') display.print_xzoom(vmap);
 }
 
-fn expand_prune(vmap: [*c]view_map_t, pmap: *[MAP_SIZE]path_map_t, loc: c_long, terrain_type_val: c_int, to: *perimeter_t, explored: *c_int) void {
+fn expand_prune(vmap: *[MAP_SIZE]view_map_t, pmap: *[MAP_SIZE]path_map_t, loc: i64, terrain_type_val: i32, to: *perimeter_t, explored: *i32) void {
     const uloc: usize = @intCast(loc);
     explored.* += 1;
 
@@ -744,7 +742,7 @@ fn expand_prune(vmap: [*c]view_map_t, pmap: *[MAP_SIZE]path_map_t, loc: c_long, 
         vmap[uloc].contents = MAP_SEA;
 
     for (data.dir_offset[0..8]) |offset| {
-        const new_loc: c_long = loc + @as(c_long, offset);
+        const new_loc: i64 = loc + @as(i64, offset);
         if (new_loc >= 0 and new_loc < MAP_SIZE) {
             const nu: usize = @intCast(new_loc);
             if (vmap[nu].contents == ' ') {
@@ -765,9 +763,9 @@ fn expand_prune(vmap: [*c]view_map_t, pmap: *[MAP_SIZE]path_map_t, loc: c_long, 
 // Shore and sea tests
 // ============================================================
 
-pub fn rmap_shore(loc: c_long) bool {
+pub fn rmap_shore(loc: i64) bool {
     for (data.dir_offset[0..8]) |offset| {
-        const new_loc: c_long = loc + @as(c_long, offset);
+        const new_loc: i64 = loc + @as(i64, offset);
         const nu: usize = @intCast(new_loc);
         if (globals.map[nu].on_board and globals.map[nu].contents == MAP_SEA)
             return true;
@@ -775,9 +773,9 @@ pub fn rmap_shore(loc: c_long) bool {
     return false;
 }
 
-pub fn vmap_shore(vmap: [*c]view_map_t, loc: c_long) bool {
+pub fn vmap_shore(vmap: *[MAP_SIZE]view_map_t, loc: i64) bool {
     for (data.dir_offset[0..8]) |offset| {
-        const new_loc: c_long = loc + @as(c_long, offset);
+        const new_loc: i64 = loc + @as(i64, offset);
         const nu: usize = @intCast(new_loc);
         if (globals.map[nu].on_board and
             vmap[nu].contents != ' ' and vmap[nu].contents != MAP_LAND and
@@ -787,12 +785,12 @@ pub fn vmap_shore(vmap: [*c]view_map_t, loc: c_long) bool {
     return false;
 }
 
-pub fn vmap_at_sea(vmap: [*c]view_map_t, loc: c_long) bool {
+pub fn vmap_at_sea(vmap: *[MAP_SIZE]view_map_t, loc: i64) bool {
     const uloc: usize = @intCast(loc);
     if (globals.map[uloc].contents != MAP_SEA) return false;
 
     for (data.dir_offset[0..8]) |offset| {
-        const new_loc: c_long = loc + @as(c_long, offset);
+        const new_loc: i64 = loc + @as(i64, offset);
         const nu: usize = @intCast(new_loc);
         if (globals.map[nu].on_board and
             (vmap[nu].contents == ' ' or vmap[nu].contents == MAP_LAND or
@@ -802,12 +800,12 @@ pub fn vmap_at_sea(vmap: [*c]view_map_t, loc: c_long) bool {
     return true;
 }
 
-pub fn rmap_at_sea(loc: c_long) bool {
+pub fn rmap_at_sea(loc: i64) bool {
     const uloc: usize = @intCast(loc);
     if (globals.map[uloc].contents != MAP_SEA) return false;
 
     for (data.dir_offset[0..8]) |offset| {
-        const new_loc: c_long = loc + @as(c_long, offset);
+        const new_loc: i64 = loc + @as(i64, offset);
         const nu: usize = @intCast(new_loc);
         if (globals.map[nu].on_board and globals.map[nu].contents != MAP_SEA)
             return false;

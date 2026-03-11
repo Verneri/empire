@@ -6,31 +6,23 @@ const terminal = @import("terminal.zig");
 const util = @import("util.zig");
 const vx = @import("vx.zig");
 
-const c = @cImport({
-    @cInclude("stdio.h");
-});
-
 const view_map_t = types.view_map_t;
 const path_map_t = types.path_map_t;
 
 const STRSIZE = globals.STRSIZE;
 const MAP_WIDTH = globals.MAP_WIDTH;
 const MAP_HEIGHT = globals.MAP_HEIGHT;
+const MAP_SIZE = globals.MAP_SIZE;
 const ROWS_PER_SECTOR = globals.ROWS_PER_SECTOR;
 const COLS_PER_SECTOR = globals.COLS_PER_SECTOR;
 
-const NUMTOPS: c_int = 3;
-const NUMSIDES: c_int = 6;
+const NUMTOPS: i32 = 3;
+const NUMSIDES: i32 = 6;
 const USER = @intFromEnum(globals.Ownership.User);
 const COMP = @intFromEnum(globals.Ownership.Comp);
 const UNOWNED = @intFromEnum(globals.Ownership.Unowned);
 const T_PATH: u8 = 1;
-const INFINITY: c_int = 10000000;
-
-const VaList = std.builtin.VaList;
-
-// C library (for vsnprintf / snprintf)
-extern fn vsnprintf(buf: [*c]u8, size: c_ulong, fmt: [*c]const u8, ap: *VaList) c_int;
+const INFINITY: i32 = 10000000;
 
 // ── styles ───────────────────────────────────────────────────────────────
 const style_default: vx.Style = .{ .fg = .{ .index = 7 }, .bold = true };
@@ -49,17 +41,17 @@ fn style_for(ch: u8) vx.Style {
 }
 
 // State
-var whose_map: c_int = UNOWNED;
-var ref_row: c_int = 0;
-var ref_col: c_int = 0;
-var save_sector: c_int = 0;
-var save_cursor: c_long = 0;
+var whose_map: i32 = UNOWNED;
+var ref_row: i32 = 0;
+var ref_col: i32 = 0;
+var save_sector: i32 = 0;
+var save_cursor: i64 = 0;
 var change_ok: bool = true;
 
 // ── cursor tracking for move_cursor / show_loc ───────────────────────────
 // These track the logical cursor position on the map display.
-var cursor_row: c_int = 0;
-var cursor_col: c_int = 0;
+var cursor_row: i32 = 0;
+var cursor_col: i32 = 0;
 
 fn disp_square_at(col: u16, row: u16, vp: *view_map_t) void {
     vx.writeCell(col, row, @intCast(vp.contents & 0x7F), style_for(vp.contents));
@@ -67,8 +59,7 @@ fn disp_square_at(col: u16, row: u16, vp: *view_map_t) void {
 
 // Public API
 
-pub fn announce(msg: [*c]const u8) void {
-    if (msg == null) return;
+pub fn announce(msg: [*:0]const u8) void {
     var i: usize = 0;
     while (msg[i] != 0) : (i += 1) {
         const col: u16 = @as(u16, @intCast(cursor_col)) +| @as(u16, @intCast(i));
@@ -77,7 +68,7 @@ pub fn announce(msg: [*c]const u8) void {
     }
 }
 
-pub fn direction(ch: u21) c_int {
+pub fn direction(ch: u21) i32 {
     return switch (ch) {
         'w', 'W', vx.Key.up => 0,
         'e', 'E', vx.Key.page_up => 1,
@@ -99,17 +90,17 @@ pub fn sector_change() void {
     change_ok = true;
 }
 
-pub fn cur_sector() c_int {
+pub fn cur_sector() i32 {
     if (whose_map != USER) return -1;
     return save_sector;
 }
 
-pub fn cur_cursor() c_long {
+pub fn cur_cursor() i64 {
     if (whose_map != USER) return -1;
     return save_cursor;
 }
 
-fn on_screen(loc: c_long) bool {
+fn on_screen(loc: i64) bool {
     const new_r = util.loc_row(loc);
     const new_c = util.loc_col(loc);
 
@@ -122,30 +113,30 @@ fn on_screen(loc: c_long) bool {
     return true;
 }
 
-fn show_loc(vmap: [*c]view_map_t, loc: c_long) void {
-    const r: c_int = @intCast(util.loc_row(loc));
-    const col: c_int = @intCast(util.loc_col(loc));
+fn show_loc(vmap: *[MAP_SIZE]view_map_t, loc: i64) void {
+    const r = util.loc_row(loc);
+    const col = util.loc_col(loc);
     const scr_row = r - ref_row + NUMTOPS;
     const scr_col = col - ref_col;
     const uloc: usize = @intCast(loc);
-    disp_square_at(@intCast(scr_col), @intCast(scr_row), @ptrCast(&vmap[uloc]));
+    disp_square_at(@intCast(scr_col), @intCast(scr_row), &vmap[uloc]);
     save_cursor = loc;
     cursor_row = scr_row;
     cursor_col = scr_col;
 }
 
-pub fn display_loc(whose: c_int, vmap: [*c]view_map_t, loc: c_long) void {
+pub fn display_loc(whose: i32, vmap: *[MAP_SIZE]view_map_t, loc: i64) void {
     if (change_ok or whose != whose_map or !on_screen(loc))
         print_sector(whose, vmap, util.loc_sector(loc));
 
     show_loc(vmap, loc);
 }
 
-pub fn display_locx(whose: c_int, vmap: [*c]view_map_t, loc: c_long) void {
+pub fn display_locx(whose: i32, vmap: *[MAP_SIZE]view_map_t, loc: i64) void {
     if (whose == whose_map and on_screen(loc)) show_loc(vmap, loc);
 }
 
-fn display_screen(vmap: [*c]view_map_t) void {
+fn display_screen(vmap: *[MAP_SIZE]view_map_t) void {
     const display_rows = globals.lines - NUMTOPS - 1;
     const display_cols = globals.cols - NUMSIDES;
 
@@ -156,12 +147,12 @@ fn display_screen(vmap: [*c]view_map_t) void {
             const t = util.row_col_loc(r, col);
             const scr_row: u16 = @intCast(r - ref_row + NUMTOPS);
             const scr_col: u16 = @intCast(col - ref_col);
-            disp_square_at(scr_col, scr_row, @ptrCast(&vmap[@intCast(t)]));
+            disp_square_at(scr_col, scr_row, &vmap[@intCast(t)]);
         }
     }
 }
 
-pub fn print_sector(whose: c_int, vmap: [*c]view_map_t, sector: c_int) void {
+pub fn print_sector(whose: i32, vmap: *[MAP_SIZE]view_map_t, sector: i32) void {
     save_sector = sector;
     change_ok = false;
 
@@ -198,7 +189,7 @@ pub fn print_sector(whose: c_int, vmap: [*c]view_map_t, sector: c_int) void {
     var col = ref_col;
     while (col < ref_col + display_cols and col < MAP_WIDTH) : (col += 1) {
         if (@rem(col, 10) == 0) {
-            pos_str(globals.lines - 1, col - ref_col, "%d", col);
+            pos_str(globals.lines - 1, col - ref_col, "{d}", .{col});
         }
     }
 
@@ -206,33 +197,31 @@ pub fn print_sector(whose: c_int, vmap: [*c]view_map_t, sector: c_int) void {
     var r = ref_row;
     while (r < ref_row + display_rows and r < MAP_HEIGHT) : (r += 1) {
         if (@rem(r, 2) == 0)
-            pos_str(r - ref_row + NUMTOPS, globals.cols - NUMSIDES + 1, "%2d", r)
+            pos_str(r - ref_row + NUMTOPS, globals.cols - NUMSIDES + 1, "{d:2}", .{r})
         else
-            pos_str(r - ref_row + NUMTOPS, globals.cols - NUMSIDES + 1, "  ");
+            pos_str(r - ref_row + NUMTOPS, globals.cols - NUMSIDES + 1, "  ", .{});
     }
 
     // print round number vertically
-    var jnkbuf: [STRSIZE]u8 = undefined;
-    _ = c.snprintf(&jnkbuf, STRSIZE, "Sector %d Round %ld", sector, globals.date);
-    r = 0;
-    while (jnkbuf[@intCast(r)] != 0) : (r += 1) {
-        if (r + NUMTOPS >= MAP_HEIGHT) break;
-        const scr_row: u16 = @intCast(r + NUMTOPS);
-        const scr_col: u16 = @intCast(globals.cols - NUMSIDES + 4);
-        vx.writeCell(scr_col, scr_row, @intCast(jnkbuf[@intCast(r)]), style_default);
+    var label_buf: [STRSIZE]u8 = undefined;
+    const label = std.fmt.bufPrintZ(&label_buf, "Sector {d} Round {d}", .{ sector, globals.date }) catch "";
+    for (label, 0..) |ch, li| {
+        const label_row: i32 = @as(i32, @intCast(li)) + NUMTOPS;
+        if (label_row >= MAP_HEIGHT) break;
+        vx.writeCell(@intCast(globals.cols - NUMSIDES + 4), @intCast(label_row), @intCast(ch & 0x7F), style_default);
     }
 }
 
-pub fn move_cursor(cursor: [*c]c_long, offset: c_int) bool {
-    const t = cursor.* + offset;
+pub fn move_cursor(cursor: *i64, offset: i32) bool {
+    const t = cursor.* + @as(i64, offset);
     if (!globals.map[@intCast(t)].on_board) return false;
     if (!on_screen(t)) return false;
 
     cursor.* = t;
     save_cursor = cursor.*;
 
-    const r: c_int = @intCast(util.loc_row(save_cursor));
-    const col: c_int = @intCast(util.loc_col(save_cursor));
+    const r = util.loc_row(save_cursor);
+    const col = util.loc_col(save_cursor);
     cursor_row = r - ref_row + NUMTOPS;
     cursor_col = col - ref_col;
 
@@ -248,7 +237,7 @@ fn zoom_rank(ch: u8) usize {
     return zoom_list.len;
 }
 
-fn print_zoom_cell(vmap: [*c]view_map_t, row: c_int, col: c_int, row_inc: c_int, col_inc: c_int) void {
+fn print_zoom_cell(vmap: *[MAP_SIZE]view_map_t, row: i32, col: i32, row_inc: i32, col_inc: i32) void {
     var cell: u8 = ' ';
     var r = row;
     while (r < row + row_inc) : (r += 1) {
@@ -264,31 +253,31 @@ fn print_zoom_cell(vmap: [*c]view_map_t, row: c_int, col: c_int, row_inc: c_int,
     vx.writeCell(scr_col, scr_row, @intCast(cell), style_for(cell));
 }
 
-pub fn print_zoom(vmap: [*c]view_map_t) void {
+pub fn print_zoom(vmap: *[MAP_SIZE]view_map_t) void {
     kill_display();
 
     const row_inc = @divTrunc(MAP_HEIGHT + globals.lines - NUMTOPS - 1, globals.lines - NUMTOPS);
     const col_inc = @divTrunc(MAP_WIDTH + globals.cols - 1, globals.cols - 1);
 
-    var r: c_int = 0;
+    var r: i32 = 0;
     while (r < MAP_HEIGHT) : (r += row_inc) {
-        var col: c_int = 0;
+        var col: i32 = 0;
         while (col < MAP_WIDTH) : (col += col_inc) {
             print_zoom_cell(vmap, r, col, row_inc, col_inc);
         }
     }
 
-    pos_str(0, 0, "Round #%d", globals.date);
+    pos_str(0, 0, "Round #{d}", .{globals.date});
     vx.render();
 }
 
-pub fn print_xzoom(vmap: [*c]view_map_t) void {
+pub fn print_xzoom(vmap: *[MAP_SIZE]view_map_t) void {
     print_zoom(vmap);
 }
 
-fn print_pzoom_cell(pmap: [*c]path_map_t, vmap: [*c]view_map_t, row: c_int, col: c_int, row_inc: c_int, col_inc: c_int) void {
-    var sum: c_int = 0;
-    var d_count: c_int = 0;
+fn print_pzoom_cell(pmap: *[MAP_SIZE]path_map_t, vmap: *[MAP_SIZE]view_map_t, row: i32, col: i32, row_inc: i32, col_inc: i32) void {
+    var sum: i32 = 0;
+    var d_count: i32 = 0;
 
     var r = row;
     while (r < row + row_inc) : (r += 1) {
@@ -328,31 +317,31 @@ fn print_pzoom_cell(pmap: [*c]path_map_t, vmap: [*c]view_map_t, row: c_int, col:
     }
 }
 
-pub fn print_pzoom(s: [*c]const u8, pmap: [*c]path_map_t, vmap: [*c]view_map_t) void {
+pub fn print_pzoom(s: [*:0]const u8, pmap: *[MAP_SIZE]path_map_t, vmap: *[MAP_SIZE]view_map_t) void {
     kill_display();
 
     const row_inc = @divTrunc(MAP_HEIGHT + globals.lines - NUMTOPS - 1, globals.lines - NUMTOPS);
     const col_inc = @divTrunc(MAP_WIDTH + globals.cols - 1, globals.cols - 1);
 
-    var r: c_int = 0;
+    var r: i32 = 0;
     while (r < MAP_HEIGHT) : (r += row_inc) {
-        var col: c_int = 0;
+        var col: i32 = 0;
         while (col < MAP_WIDTH) : (col += col_inc) {
             print_pzoom_cell(pmap, vmap, r, col, row_inc, col_inc);
         }
     }
 
-    terminal.prompt(s);
+    terminal.writeTopmsg(1, s);
     _ = terminal.get_chx();
     vx.render();
 }
 
 pub fn display_score() void {
-    pos_str(1, globals.cols - 12, " User  Comp");
-    pos_str(2, globals.cols - 12, "%5d %5d", globals.user_score, globals.comp_score);
+    pos_str(1, globals.cols - 12, " User  Comp", .{});
+    pos_str(2, globals.cols - 12, "{d:5} {d:5}", .{ globals.user_score, globals.comp_score });
 }
 
-pub fn clreol(linep: c_int, colp: c_int) void {
+pub fn clreol(linep: i32, colp: i32) void {
     const row: u16 = @intCast(linep);
     var x: u16 = @intCast(colp);
     while (x < vx.term_width) : (x += 1) {
@@ -362,6 +351,10 @@ pub fn clreol(linep: c_int, colp: c_int) void {
 
 pub fn ttinit() void {
     vx.init();
+    ttinit_sizes();
+}
+
+pub fn ttinit_sizes() void {
     globals.lines = vx.lines();
     globals.cols = vx.cols();
     if (globals.lines > MAP_HEIGHT + NUMTOPS + 1) globals.lines = MAP_HEIGHT + NUMTOPS + 1;
@@ -388,7 +381,7 @@ pub fn redraw() void {
 
 pub fn delay() void {
     var t = globals.delay_time;
-    const i: c_int = 500;
+    const i: i32 = 500;
     vx.render();
     if (t > i) {
         cursor_row = vx.lines() - 1;
@@ -415,25 +408,21 @@ pub fn close_disp() void {
     vx.deinit();
 }
 
-pub fn pos_str(row: c_int, col: c_int, str: [*c]const u8, ...) callconv(.c) void {
-    var ap = @cVaStart();
-    defer @cVaEnd(&ap);
+pub fn pos_str(row: i32, col: i32, comptime fmt: []const u8, args: anytype) void {
     var junkbuf: [STRSIZE]u8 = undefined;
-    _ = vsnprintf(&junkbuf, STRSIZE, str, &ap);
+    const s = std.fmt.bufPrintZ(&junkbuf, fmt, args) catch return;
 
-    // Write the formatted string at (col, row)
-    var i: usize = 0;
-    while (junkbuf[i] != 0) : (i += 1) {
+    for (s, 0..) |ch, i| {
         const scr_col: u16 = @as(u16, @intCast(col)) +| @as(u16, @intCast(i));
         if (scr_col >= vx.term_width) break;
-        vx.writeCell(scr_col, @intCast(row), @intCast(junkbuf[i] & 0x7F), style_default);
+        vx.writeCell(scr_col, @intCast(row), @intCast(ch & 0x7F), style_default);
     }
     // Update cursor to end of string for announce() compatibility
     cursor_row = row;
-    cursor_col = col + @as(c_int, @intCast(i));
+    cursor_col = col + @as(i32, @intCast(s.len));
 }
 
-pub fn print_movie_cell(mbuf: [*c]u8, row: c_int, col: c_int, row_inc: c_int, col_inc: c_int) void {
+pub fn print_movie_cell(mbuf: [*]u8, row: i32, col: i32, row_inc: i32, col_inc: i32) void {
     var cell: u8 = ' ';
     var r = row;
     while (r < row + row_inc) : (r += 1) {
@@ -451,26 +440,26 @@ pub fn print_movie_cell(mbuf: [*c]u8, row: c_int, col: c_int, row_inc: c_int, co
 
 // Inline wrappers for convenience
 
-pub inline fn print_sector_u(sector: c_int) void {
+pub inline fn print_sector_u(sector: i32) void {
     print_sector(USER, &globals.user_map, sector);
 }
 
-pub inline fn print_sector_c(sector: c_int) void {
+pub inline fn print_sector_c(sector: i32) void {
     print_sector(COMP, &globals.comp_map, sector);
 }
 
-pub inline fn display_loc_u(loc: c_long) void {
+pub inline fn display_loc_u(loc: i64) void {
     display_loc(USER, &globals.user_map, loc);
 }
 
-pub inline fn display_loc_c(loc: c_long) void {
+pub inline fn display_loc_c(loc: i64) void {
     display_loc(COMP, &globals.comp_map, loc);
 }
 
-pub fn blink_unit(loc: c_long, reverse: bool) void {
+pub fn blink_unit(loc: i64, reverse: bool) void {
     if (!on_screen(loc)) return;
-    const r: c_int = @intCast(util.loc_row(loc));
-    const col: c_int = @intCast(util.loc_col(loc));
+    const r = util.loc_row(loc);
+    const col = util.loc_col(loc);
     const scr_row: u16 = @intCast(r - ref_row + NUMTOPS);
     const scr_col: u16 = @intCast(col - ref_col);
     const uloc: usize = @intCast(loc);

@@ -4,12 +4,12 @@ const empire = @import("empire.zig");
 const globals = @import("globals.zig");
 
 //unistd.h
-pub extern fn getopt(c_int, [*c]const [*c]u8, [*c]const u8) c_int;
+pub extern fn getopt(i32, [*]const [*:0]u8, [*:0]const u8) i32;
 
-pub extern var optarg: [*c]u8;
+pub extern var optarg: ?[*:0]u8;
 
 //stdlib.h
-pub extern fn atoi([*c]const u8) c_int;
+pub extern fn atoi([*:0]const u8) i32;
 
 const Cargs = struct {
     contents: []u8,
@@ -49,7 +49,7 @@ const Cargs = struct {
         return cargs;
     }
 
-    pub fn argc(self: *const @This()) c_int {
+    pub fn argc(self: *const @This()) i32 {
         return @intCast(self.slices.len);
     }
 
@@ -57,7 +57,7 @@ const Cargs = struct {
         return self.slices.ptr;
     }
 
-    pub fn get_opt(self: *const @This(), opts: []const u8) ?u8 {
+    pub fn get_opt(self: *const @This(), opts: [:0]const u8) ?u8 {
         const res = getopt(self.argc(), self.argv(), opts.ptr);
         if (res == -1) return null;
         return @intCast(res);
@@ -147,7 +147,7 @@ pub fn start_game(sflg: i32, wflg: i32, dflg: i32, siflg: u16, save: [:0]u8) voi
     std.debug.print("smooth: {}\n", .{globals.SMOOTH});
     std.debug.print("delay time: {}\n", .{globals.delay_time});
     std.debug.print("save interval: {}\n", .{globals.save_interval});
-    std.debug.print("savefile: {s}\n", .{globals.savefile});
+    std.debug.print("savefile: {s}\n", .{globals.savefile orelse "(none)"});
     std.debug.print("land per city: {}\n", .{land});
     std.debug.print("min city dist: {}\n", .{globals.MIN_CITY_DIST});
 
